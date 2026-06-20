@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     # ── Database ────────────────────────────────────────────────────────
     database_url: str = "sqlite+aiosqlite:///./school.db"
 
+    def __init__(self, **values):
+        super().__init__(**values)
+        if self.database_url.startswith("postgres://"):
+            self.database_url = self.database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif self.database_url.startswith("postgresql://") and not self.database_url.startswith("postgresql+asyncpg://"):
+            self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+
 
     # ── Clerk Auth ──────────────────────────────────────────────────────
     clerk_secret_key: str = ""
