@@ -1,0 +1,74 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const albums = [
+  {
+    title: "Annual Day 2025",
+    desc: "A celebration of student drama, musical performances, and annual prize distributions.",
+    cover: "https://images.unsplash.com/photo-1511578314322-379afb476865?w=500&fit=crop",
+    images: [
+      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&fit=crop",
+      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&fit=crop",
+      "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=600&fit=crop",
+    ]
+  },
+  {
+    title: "Sports Meet 2025",
+    desc: "Track events, obstacle races, and group sports competitions highlighting team spirit.",
+    cover: "https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=500&fit=crop",
+    images: [
+      "https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=600&fit=crop",
+      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&fit=crop",
+      "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=600&fit=crop",
+    ]
+  },
+  {
+    title: "Classroom Activities",
+    desc: "Interactive arts and crafts session, smart board lessons, and science projects.",
+    cover: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&fit=crop",
+    images: [
+      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&fit=crop",
+      "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&fit=crop",
+      "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=600&fit=crop",
+    ]
+  },
+];
+---
+
+<BaseLayout title="Gallery — Knowledge Development Kindergarten Academy">
+  <!-- Banner -->
+  <section class="bg-gradient-to-br from-indigo-900 via-indigo-850 to-indigo-950 text-white py-16 px-4 text-center">
+    <div class="max-w-4xl mx-auto space-y-4">
+      <h1 class="text-4xl md:text-5xl font-extrabold font-heading">Campus Gallery</h1>
+      <p class="text-indigo-200 text-lg max-w-xl mx-auto">
+        A glimpse into the daily life, celebrations, achievements, and sports activities of our students.
+      </p>
+    </div>
+  </section>
+
+  <!-- Album list -->
+  <section class="max-w-6xl mx-auto px-4 py-20 space-y-16">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {albums.map(album => (
+        <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition group">
+          <div class="relative overflow-hidden aspect-[4/3] bg-slate-150">
+            <img
+              src={album.cover}
+              alt={album.title}
+              class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex items-end p-6">
+              <span class="text-white font-bold text-sm bg-indigo-600 px-3 py-1.5 rounded-lg shadow">
+                View Photos
+              </span>
+            </div>
+          </div>
+          <div class="p-6 space-y-2">
+            <h3 class="text-xl font-extrabold text-slate-800">{album.title}</h3>
+            <p class="text-sm text-slate-500 font-semibold leading-relaxed">{album.desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,92 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const studentAchievements = [
+  {
+    name: "Master Aarav Sharma (Class X)",
+    award: "State Science Talent Search Winner",
+    desc: "Awarded first place for designing a low-cost water purification model using smart sensors.",
+    image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&fit=crop",
+  },
+  {
+    name: "Miss Riya Verma (Class VIII)",
+    award: "District Under-14 Chess Champion",
+    desc: "Maintained a clean sweep of 7 rounds to win the gold medal in the inter-school chess championship.",
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&fit=crop",
+  },
+];
+
+const schoolAwards = [
+  {
+    title: "Cleanest Campus Award 2025",
+    body: "Awarded by the Municipal Council for implementing green waste segregation, zero-plastic zones, and robust school landscaping.",
+  },
+  {
+    title: "ICT Innovation in Education Certificate",
+    body: "Presented in the National Education Forum for introducing fully-integrated digital smart boards and parent-facing notification routers.",
+  },
+];
+---
+
+<BaseLayout title="Achievements — Knowledge Development Kindergarten Academy">
+  <!-- Banner -->
+  <section class="bg-gradient-to-br from-indigo-900 via-indigo-850 to-indigo-950 text-white py-16 px-4 text-center">
+    <div class="max-w-4xl mx-auto space-y-4">
+      <h1 class="text-4xl md:text-5xl font-extrabold font-heading">Achievements & News</h1>
+      <p class="text-indigo-200 text-lg max-w-xl mx-auto">
+        Celebrating the academic milestones, sports records, and municipal recognition of our students and campus.
+      </p>
+    </div>
+  </section>
+
+  <!-- Student Achievements -->
+  <section class="max-w-6xl mx-auto px-4 py-20 space-y-12">
+    <div class="text-center max-w-2xl mx-auto space-y-4">
+      <h2 class="text-3xl font-extrabold font-heading text-slate-900">Student Milestones</h2>
+      <p class="text-slate-500 font-semibold">
+        Recognizing individual efforts that highlight core academy values.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {studentAchievements.map(ach => (
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row gap-6 items-center hover:shadow-md transition">
+          <img
+            src={ach.image}
+            alt={ach.name}
+            class="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl object-cover shadow border border-slate-100 flex-shrink-0"
+          />
+          <div class="space-y-2">
+            <span class="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold uppercase tracking-wider">{ach.award}</span>
+            <h3 class="font-extrabold text-slate-800 text-lg leading-tight">{ach.name}</h3>
+            <p class="text-xs text-slate-500 font-semibold leading-relaxed">{ach.desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- School Awards -->
+  <section class="bg-slate-50 border-t border-slate-100 py-20">
+    <div class="max-w-6xl mx-auto px-4 space-y-12">
+      <div class="text-center max-w-2xl mx-auto space-y-4">
+        <h2 class="text-3xl font-extrabold font-heading text-slate-900">School Accolades</h2>
+        <p class="text-slate-500 font-semibold">
+          Institutional recognition for clean operations and educational advancements.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {schoolAwards.map(award => (
+          <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-4 hover:shadow-md transition duration-300">
+            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5a2 2 0 10-2 2h2zm0 0v4l-4 4" /></svg>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 leading-tight">{award.title}</h3>
+            <p class="text-sm text-slate-500 font-semibold leading-relaxed">{award.body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

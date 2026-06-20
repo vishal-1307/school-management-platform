@@ -1,0 +1,135 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import AdmissionForm from "../components/AdmissionForm";
+
+const steps = [
+  {
+    num: "1",
+    title: "Submit Enquiry Form",
+    desc: "Fill out the online enquiry form below with details. You can also visit our school office.",
+  },
+  {
+    num: "2",
+    title: "Interaction / Assessment",
+    desc: "We will invite you and your child for a friendly interaction session or a basic age-appropriate assessment.",
+  },
+  {
+    num: "3",
+    title: "Document Submission",
+    desc: "Provide necessary copies of certificates (birth certificate, previous report cards, photographs, etc.).",
+  },
+  {
+    num: "4",
+    title: "Fee Payment & Enrollment",
+    desc: "Complete the initial term fee payment to secure your seat. An admission number will be generated.",
+  },
+];
+---
+
+<BaseLayout title="Admissions — Knowledge Development Kindergarten Academy">
+  <!-- Banner -->
+  <section class="bg-gradient-to-br from-indigo-900 via-indigo-850 to-indigo-950 text-white py-16 px-4 text-center">
+    <div class="max-w-4xl mx-auto space-y-4">
+      <h1 class="text-4xl md:text-5xl font-extrabold font-heading">Admissions 2026-27</h1>
+      <p class="text-indigo-200 text-lg max-w-xl mx-auto">
+        Join our academy. Find entry criteria, required documents checklist, and submit your admission enquiry.
+      </p>
+    </div>
+  </section>
+
+  <!-- Process Steps -->
+  <section class="max-w-6xl mx-auto px-4 py-20 space-y-12">
+    <div class="text-center max-w-2xl mx-auto space-y-4">
+      <h2 class="text-3xl font-extrabold font-heading text-slate-900">Admission Process</h2>
+      <p class="text-slate-500 font-semibold">
+        A simple, transparent four-step process to enroll your child at our academy.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+      {steps.map(step => (
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative space-y-4">
+          <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold font-heading text-lg">
+            {step.num}
+          </div>
+          <h3 class="text-lg font-bold text-slate-800">{step.title}</h3>
+          <p class="text-sm text-slate-500 font-semibold leading-relaxed">{step.desc}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Split Layout: Form & Eligibility -->
+  <section class="bg-slate-50 py-20 border-y border-slate-100">
+    <div class="max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-16">
+      <!-- Enquiry Form -->
+      <div class="lg:col-span-7 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+        <div class="space-y-2">
+          <h2 class="text-2xl font-extrabold font-heading text-slate-800">Online Enquiry Form</h2>
+          <p class="text-sm text-slate-500 font-semibold">
+            Fill out the form below. Our admissions desk will contact you within 24-48 hours.
+          </p>
+        </div>
+        <AdmissionForm client:load />
+      </div>
+
+      <!-- Criteria & Documents -->
+      <div class="lg:col-span-5 space-y-12">
+        <!-- Criteria -->
+        <div class="space-y-6">
+          <h3 class="text-2xl font-extrabold font-heading text-slate-900">Age Eligibility Criteria</h3>
+          <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <table class="w-full text-left text-sm font-semibold">
+              <thead class="bg-slate-100 text-slate-700 uppercase tracking-wider text-xs border-b border-slate-200">
+                <tr>
+                  <th class="p-4">Class</th>
+                  <th class="p-4">Minimum Age (As of June 1st)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-150 text-slate-600">
+                <tr>
+                  <td class="p-4 font-bold text-slate-800">Playgroup</td>
+                  <td class="p-4">2.5 Years</td>
+                </tr>
+                <tr>
+                  <td class="p-4 font-bold text-slate-800">Nursery</td>
+                  <td class="p-4">3 Years</td>
+                </tr>
+                <tr>
+                  <td class="p-4 font-bold text-slate-800">LKG</td>
+                  <td class="p-4">4 Years</td>
+                </tr>
+                <tr>
+                  <td class="p-4 font-bold text-slate-800">Class 1</td>
+                  <td class="p-4">6 Years</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Required Documents -->
+        <div class="space-y-6">
+          <h3 class="text-2xl font-extrabold font-heading text-slate-900">Required Documents Checklist</h3>
+          <div class="space-y-3">
+            {[
+              "Copy of Birth Certificate",
+              "Original Transfer Certificate (TC) from previous school",
+              "Copy of previous year's Report Card (if applicable)",
+              "Student passport-size photographs (4 copies)",
+              "Parent passport-size photographs (2 copies each)",
+              "Copy of Aadhaar Card (Student & Parents)",
+            ].map(doc => (
+              <div class="flex items-start gap-3">
+                <span class="p-1 bg-emerald-50 text-emerald-600 rounded-lg flex-shrink-0 mt-0.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+                </span>
+                <span class="text-sm font-semibold text-slate-600 leading-relaxed">{doc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Bonafide Certificate</title>
+<style>
+  body { font-family: 'Times New Roman', serif; max-width: 800px; margin: 40px auto; padding: 20px; border: 2px solid #333; }
+  h1 { text-align: center; margin-bottom: 5px; }
+  h3 { text-align: center; color: #555; margin-top: 0; }
+  .content { margin: 30px 0; line-height: 2; font-size: 16px; }
+  .footer { margin-top: 80px; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+  <h1>{{ school.name }}</h1>
+  <h3>{{ school.address }}</h3>
+  <p style="text-align:center;">Affiliation No: {{ school.affiliation_number }}</p>
+  <hr>
+  <h2 style="text-align:center;">BONAFIDE CERTIFICATE</h2>
+  <div class="content">
+    <p>This is to certify that <strong>{{ student.name }}</strong>,
+    Son/Daughter of <strong>{{ student.father_name }}</strong>,
+    bearing Admission No. <strong>{{ student.admission_number }}</strong>,
+    Date of Birth <strong>{{ student.dob }}</strong>,
+    is a bonafide student of this school studying in
+    Class <strong>{{ student.class_name }}</strong>.</p>
+    <p>This certificate is issued on request for whatever purpose it may serve.</p>
+  </div>
+  <p><strong>Date:</strong> {{ issue_date }}</p>
+  <div class="footer">
+    <div>Class Teacher</div>
+    <div>Principal</div>
+  </div>
+</body>
+</html>

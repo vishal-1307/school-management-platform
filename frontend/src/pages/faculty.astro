@@ -1,0 +1,140 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const adminLeaders = [
+  {
+    name: "Mrs. Anita Sharma",
+    role: "Principal",
+    qualification: "M.A., B.Ed.",
+    experience: "18+ Years",
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&fit=crop",
+  },
+  {
+    name: "Mr. Rajan Verma",
+    role: "Vice Principal",
+    qualification: "M.Sc., M.Ed.",
+    experience: "15+ Years",
+    image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&fit=crop",
+  },
+];
+
+const departments = [
+  {
+    name: "Primary & Secondary Faculty",
+    teachers: [
+      {
+        name: "Mrs. Sunita Kaul",
+        subject: "Mathematics",
+        qualification: "M.Sc. (Maths), B.Ed.",
+        image: "https://images.unsplash.com/photo-1580894732444-8febeb78fb3e?w=300&fit=crop",
+      },
+      {
+        name: "Mr. Ramesh Joshi",
+        subject: "Science & Physics",
+        qualification: "M.Sc. (Physics), B.Ed.",
+        image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&fit=crop",
+      },
+      {
+        name: "Mrs. Priya Sen",
+        subject: "English Literature",
+        qualification: "M.A. (English), B.Ed.",
+        image: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=300&fit=crop",
+      },
+      {
+        name: "Mr. Amit Pathak",
+        subject: "Social Sciences",
+        qualification: "M.A. (History), B.Ed.",
+        image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&fit=crop",
+      },
+    ],
+  },
+  {
+    name: "Kindergarten & Pre-Primary",
+    teachers: [
+      {
+        name: "Mrs. Meera Das",
+        subject: "Nursery Teacher",
+        qualification: "N.T.T., Montessori Trained",
+        image: "https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=300&fit=crop",
+      },
+      {
+        name: "Ms. Shalini Roy",
+        subject: "LKG Coordinator",
+        qualification: "B.A., Montessori Certified",
+        image: "https://images.unsplash.com/photo-1594744803329-e58b31de215f?w=300&fit=crop",
+      },
+    ],
+  },
+];
+---
+
+<BaseLayout title="Faculty — Knowledge Development Kindergarten Academy">
+  <!-- Banner -->
+  <section class="bg-gradient-to-br from-indigo-900 via-indigo-850 to-indigo-950 text-white py-16 px-4 text-center">
+    <div class="max-w-4xl mx-auto space-y-4">
+      <h1 class="text-4xl md:text-5xl font-extrabold font-heading">Our Faculty</h1>
+      <p class="text-indigo-200 text-lg max-w-xl mx-auto">
+        Meet our experienced, dedicated team of teaching professionals who guide and mentor our students daily.
+      </p>
+    </div>
+  </section>
+
+  <!-- Leadership -->
+  <section class="max-w-4xl mx-auto px-4 py-20 space-y-12">
+    <div class="text-center max-w-2xl mx-auto space-y-4">
+      <h2 class="text-3xl font-extrabold font-heading text-slate-900">Academic Leadership</h2>
+      <p class="text-slate-500 font-semibold">
+        Guiding the academy with vision, integrity, and decades of collective experience.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 justify-center">
+      {adminLeaders.map(leader => (
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex gap-6 items-center hover:shadow-md transition">
+          <img
+            src={leader.image}
+            alt={leader.name}
+            class="w-24 h-24 rounded-full object-cover shadow border border-slate-100 flex-shrink-0"
+          />
+          <div class="space-y-1">
+            <h3 class="font-extrabold text-slate-800 text-lg">{leader.name}</h3>
+            <p class="text-indigo-600 text-sm font-bold">{leader.role}</p>
+            <p class="text-xs text-slate-500 font-semibold">Qual: {leader.qualification}</p>
+            <p class="text-xs text-slate-400 font-bold">Exp: {leader.experience}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Faculty Departments -->
+  {departments.map(dept => (
+    <section class="bg-slate-50 border-t border-slate-100 py-20">
+      <div class="max-w-6xl mx-auto px-4 space-y-12">
+        <div class="text-center max-w-2xl mx-auto space-y-4">
+          <h2 class="text-3xl font-extrabold font-heading text-slate-900">{dept.name}</h2>
+          <p class="text-slate-500 font-semibold">
+            Highly trained subject specialists and early-learning experts.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          {dept.teachers.map(teacher => (
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center hover:shadow-md transition duration-300 space-y-4">
+              <img
+                src={teacher.image}
+                alt={teacher.name}
+                class="w-32 h-32 rounded-full object-cover mx-auto shadow border border-slate-100 aspect-square"
+              />
+              <div class="space-y-1">
+                <h3 class="font-bold text-slate-800 leading-tight">{teacher.name}</h3>
+                <p class="text-indigo-600 text-xs font-bold">{teacher.subject}</p>
+                <p class="text-xs text-slate-500 font-semibold leading-relaxed">{teacher.qualification}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  ))}
+</BaseLayout>

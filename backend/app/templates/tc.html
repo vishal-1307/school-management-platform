@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Transfer Certificate</title>
+<style>
+  body { font-family: 'Times New Roman', serif; max-width: 800px; margin: 40px auto; padding: 20px; border: 2px solid #333; }
+  h1 { text-align: center; margin-bottom: 5px; }
+  h3 { text-align: center; color: #555; margin-top: 0; }
+  .field { margin: 10px 0; } .label { font-weight: bold; }
+  .footer { margin-top: 60px; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+  <h1>{{ school.name }}</h1>
+  <h3>{{ school.address }}</h3>
+  <p style="text-align:center;">Affiliation No: {{ school.affiliation_number }}</p>
+  <hr>
+  <h2 style="text-align:center;">TRANSFER CERTIFICATE</h2>
+  <div class="field"><span class="label">Admission No:</span> {{ student.admission_number }}</div>
+  <div class="field"><span class="label">Name of Student:</span> {{ student.name }}</div>
+  <div class="field"><span class="label">Father's/Guardian's Name:</span> {{ student.father_name }}</div>
+  <div class="field"><span class="label">Date of Birth:</span> {{ student.dob }}</div>
+  <div class="field"><span class="label">Class at the time of leaving:</span> {{ student.class_name }}</div>
+  <div class="field"><span class="label">Date of Admission:</span> {{ student.join_date }}</div>
+  <div class="field"><span class="label">Date of Leaving:</span> {{ student.leave_date }}</div>
+  <div class="field"><span class="label">Reason for Leaving:</span> {{ student.reason | default('Parent\'s request', true) }}</div>
+  <div class="field"><span class="label">Date of Issue:</span> {{ issue_date }}</div>
+  <div class="footer">
+    <div>Class Teacher</div>
+    <div>Principal</div>
+  </div>
+</body>
+</html>

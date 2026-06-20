@@ -1,0 +1,224 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import NoticeTicker from "../components/NoticeTicker";
+import TestimonialCarousel from "../components/TestimonialCarousel";
+
+const upcomingEvents = [
+  {
+    date: "July 10, 2026",
+    title: "Annual Science Exhibition",
+    description: "Students showcase innovative scientific models and experiments.",
+  },
+  {
+    date: "August 15, 2026",
+    title: "Independence Day Celebration",
+    description: "Patriotic parade, cultural dances, and musical performances.",
+  },
+  {
+    date: "September 5, 2026",
+    title: "Teacher's Day Special Assembly",
+    description: "Honorary student-led assembly expressing gratitude to teachers.",
+  },
+];
+---
+
+<BaseLayout title="Home — Knowledge Development Kindergarten Academy">
+  <!-- Notice Ticker -->
+  <NoticeTicker client:load />
+
+  <!-- Hero Section -->
+  <section class="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-850 to-indigo-950 text-white py-20 px-4">
+    <div class="absolute inset-0 z-0 opacity-40">
+      <img
+        src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&fit=crop"
+        alt="School Campus"
+        class="w-full h-full object-cover"
+      />
+      <div class="absolute inset-0 bg-gradient-to-t from-indigo-950 via-transparent to-transparent"></div>
+    </div>
+    
+    <div class="max-w-5xl mx-auto text-center relative z-10 space-y-8 reveal">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/20 backdrop-blur rounded-full text-amber-400 font-semibold text-sm border border-indigo-400/20">
+        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+        Admissions Open for Academic Year 2026-27
+      </div>
+      <h1 class="text-4xl md:text-6xl font-extrabold font-heading tracking-tight leading-none text-white drop-shadow-md">
+        Nurturing Minds, <span class="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">Shaping Futures</span>
+      </h1>
+      <p class="text-lg md:text-xl text-indigo-100 max-w-2xl mx-auto leading-relaxed">
+        Welcome to Knowledge Development Kindergarten Academy. We combine academic excellence with holistic development in a warm, supportive, and modern environment.
+      </p>
+      <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+        <a
+          href="/admissions"
+          class="w-full sm:w-auto px-8 py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl transition duration-300 shadow-lg hover:shadow-amber-500/20 text-center"
+        >
+          Explore Admissions
+        </a>
+        <a
+          href="/about"
+          class="w-full sm:w-auto px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition duration-300 backdrop-blur border border-white/20 text-center"
+        >
+          Know More
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Access Buttons -->
+  <section class="max-w-6xl mx-auto px-4 -mt-12 relative z-20 reveal">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <a href="/admissions" class="flex flex-col items-center p-6 bg-white rounded-2xl shadow-xl hover:-translate-y-1 transition duration-300 border border-slate-100 group">
+        <span class="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition duration-300 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+        </span>
+        <span class="font-bold text-slate-800 text-sm md:text-base">Admissions</span>
+      </a>
+      <a href="/login" class="flex flex-col items-center p-6 bg-white rounded-2xl shadow-xl hover:-translate-y-1 transition duration-300 border border-slate-100 group">
+        <span class="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition duration-300 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </span>
+        <span class="font-bold text-slate-800 text-sm md:text-base">Results Portal</span>
+      </a>
+      <a href="/notices" class="flex flex-col items-center p-6 bg-white rounded-2xl shadow-xl hover:-translate-y-1 transition duration-300 border border-slate-100 group">
+        <span class="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:bg-amber-600 group-hover:text-white transition duration-300 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+        </span>
+        <span class="font-bold text-slate-800 text-sm md:text-base">Notices Board</span>
+      </a>
+      <a href="/contact" class="flex flex-col items-center p-6 bg-white rounded-2xl shadow-xl hover:-translate-y-1 transition duration-300 border border-slate-100 group">
+        <span class="p-3 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition duration-300 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L22 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+        </span>
+        <span class="font-bold text-slate-800 text-sm md:text-base">Contact Us</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Welcome Section -->
+  <section class="max-w-6xl mx-auto px-4 py-20 reveal">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
+      <div class="md:col-span-5 relative">
+        <div class="absolute -inset-4 bg-indigo-500/10 rounded-3xl -rotate-3 -z-10"></div>
+        <img
+          src="https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&fit=crop"
+          alt="School Principal"
+          class="w-full h-auto object-cover rounded-3xl shadow-xl aspect-[4/5]"
+        />
+      </div>
+      <div class="md:col-span-7 space-y-6">
+        <div class="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full font-bold text-sm">
+          Welcome to Our Academy
+        </div>
+        <h2 class="text-3xl md:text-4xl font-extrabold font-heading text-slate-900 leading-tight">
+          Nurturing Lifelong Learners and Compassionate Global Citizens
+        </h2>
+        <p class="text-slate-600 leading-relaxed">
+          At Knowledge Development Kindergarten Academy, we believe that education is not just about learning facts, but about training the mind to think. We foster curiosity, creativity, and critical thinking from the very first steps of preschool through senior secondary levels.
+        </p>
+        <p class="text-slate-600 leading-relaxed font-medium">
+          "Our dedicated faculty, modern digital-ready classrooms, and deep commitment to student welfare ensure every child achieves their full potential in a safe, dynamic learning space."
+        </p>
+        <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div>
+            <h4 class="font-extrabold text-slate-800">Mrs. Anita Sharma</h4>
+            <p class="text-sm text-slate-500 font-semibold">Principal, M.A., B.Ed.</p>
+          </div>
+          <a href="/about" class="text-indigo-600 hover:text-indigo-700 font-bold inline-flex items-center gap-1 transition">
+            Read full message
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Choose Us Stats -->
+  <section class="bg-slate-50 py-20 border-y border-slate-100">
+    <div class="max-w-6xl mx-auto px-4 reveal">
+      <div class="text-center max-w-2xl mx-auto mb-16 space-y-4">
+        <h2 class="text-3xl md:text-4xl font-extrabold font-heading text-slate-900">
+          The Academy in Numbers
+        </h2>
+        <p class="text-slate-500 font-semibold">
+          A legacy of academic achievements and comprehensive student support.
+        </p>
+      </div>
+      
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div class="bg-white p-8 rounded-2xl shadow-sm text-center border border-slate-100 hover:shadow-md transition">
+          <div class="text-4xl md:text-5xl font-extrabold text-indigo-600 font-heading mb-2">25+</div>
+          <p class="text-slate-800 font-bold">Years of Legacy</p>
+        </div>
+        <div class="bg-white p-8 rounded-2xl shadow-sm text-center border border-slate-100 hover:shadow-md transition">
+          <div class="text-4xl md:text-5xl font-extrabold text-indigo-600 font-heading mb-2">1500+</div>
+          <p class="text-slate-800 font-bold">Enrolled Students</p>
+        </div>
+        <div class="bg-white p-8 rounded-2xl shadow-sm text-center border border-slate-100 hover:shadow-md transition">
+          <div class="text-4xl md:text-5xl font-extrabold text-indigo-600 font-heading mb-2">CBSE</div>
+          <p class="text-slate-800 font-bold">Board Affiliated</p>
+        </div>
+        <div class="bg-white p-8 rounded-2xl shadow-sm text-center border border-slate-100 hover:shadow-md transition">
+          <div class="text-4xl md:text-5xl font-extrabold text-indigo-600 font-heading mb-2">100%</div>
+          <p class="text-slate-800 font-bold">Board Results</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Upcoming Events & Testimonials -->
+  <section class="max-w-6xl mx-auto px-4 py-20 grid grid-cols-1 lg:grid-cols-2 gap-16 reveal">
+    <!-- Events -->
+    <div class="space-y-8">
+      <div class="flex items-center justify-between">
+        <h2 class="text-3xl font-extrabold font-heading text-slate-900">Upcoming Events</h2>
+        <a href="/achievements" class="text-indigo-600 hover:text-indigo-700 font-bold text-sm">View all events</a>
+      </div>
+      <div class="space-y-4">
+        {upcomingEvents.map(event => (
+          <div class="flex gap-6 p-6 bg-white border border-slate-100 rounded-2xl hover:shadow-sm transition">
+            <div class="flex-shrink-0 text-center bg-indigo-50 text-indigo-600 px-4 py-3 rounded-xl flex flex-col justify-center min-w-[90px] h-[90px]">
+              <span class="text-xs uppercase font-extrabold text-indigo-500">{event.date.split(" ")[0]}</span>
+              <span class="text-2xl font-black font-heading leading-tight">{event.date.split(" ")[1].replace(",", "")}</span>
+            </div>
+            <div class="space-y-2">
+              <h3 class="font-bold text-slate-800 leading-tight">{event.title}</h3>
+              <p class="text-sm text-slate-500 leading-relaxed font-semibold">{event.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Testimonials -->
+    <div class="space-y-8 flex flex-col justify-between">
+      <div>
+        <h2 class="text-3xl font-extrabold font-heading text-slate-900 mb-8">What Parents Say</h2>
+        <TestimonialCarousel client:load />
+      </div>
+    </div>
+  </section>
+
+  <!-- Admissions Open Banner -->
+  <section class="max-w-6xl mx-auto px-4 pb-20 reveal">
+    <div class="relative bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 text-white rounded-3xl p-12 overflow-hidden shadow-xl text-center space-y-6">
+      <div class="absolute -right-16 -top-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
+      <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-indigo-900/40 rounded-full blur-3xl"></div>
+      
+      <h2 class="text-3xl md:text-4xl font-extrabold font-heading tracking-tight relative z-10 leading-none">
+        Open the Doors to Quality Education
+      </h2>
+      <p class="text-indigo-100 max-w-xl mx-auto relative z-10 font-semibold leading-relaxed">
+        Secure your child's seat for the upcoming term. We offer simple online admissions enquiries, interactive school tours, and clear admission gates.
+      </p>
+      <div class="relative z-10 pt-4">
+        <a
+          href="/admissions"
+          class="inline-block px-8 py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl transition duration-300 shadow-lg hover:shadow-amber-500/20"
+        >
+          Apply/Enquire Now
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,282 @@
+"""Fee management endpoints — structure CRUD, payments, defaulters, Razorpay webhook."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Any, Dict, List
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.middleware.auth import require_role
+from app.models.fee import FeeStructure, FeeTransaction, PaymentMode
+from app.models.student import Student
+from app.models.user import User, UserRole
+from app.schemas.common import MessageResponse
+from app.schemas.fee import (
+    DefaulterResponse,
+    FeeReceiptResponse,
+    FeeStructureCreate,
+    FeeStructureResponse,
+    FeeTransactionCreate,
+)
+from app.services import razorpay as razorpay_service
+
+router = APIRouter(prefix="/fees", tags=["Fees"])
+
+ADMIN_ROLES = (UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN)
+
+
+async def _generate_receipt_number(db: AsyncSession) -> str:
+    """Generate a sequential receipt number like RCT-00001."""
+    result = await db.execute(select(func.count(FeeTransaction.id)))
+    count = result.scalar() or 0
+    return f"RCT-{count + 1:05d}"
+
+
+# ── Fee Structure CRUD ──────────────────────────────────────────────────
+
+
+@router.post("/structures", response_model=FeeStructureResponse, status_code=status.HTTP_201_CREATED)
+async def create_fee_structure(
+    payload: FeeStructureCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> FeeStructureResponse:
+    """Define a new fee head for a class/academic-year."""
+    structure = FeeStructure(**payload.model_dump())
+    db.add(structure)
+    await db.flush()
+    await db.refresh(structure)
+    return FeeStructureResponse.model_validate(structure)
+
+
+@router.get("/structures", response_model=List[FeeStructureResponse])
+async def list_fee_structures(
+    class_id: int | None = Query(None),
+    academic_year_id: int | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> List[FeeStructureResponse]:
+    """List fee structures with optional filters."""
+    query = select(FeeStructure)
+    if class_id:
+        query = query.where(FeeStructure.class_id == class_id)
+    if academic_year_id:
+        query = query.where(FeeStructure.academic_year_id == academic_year_id)
+    query = query.order_by(FeeStructure.due_date)
+    result = await db.execute(query)
+    return [FeeStructureResponse.model_validate(s) for s in result.scalars().all()]
+
+
+@router.put("/structures/{structure_id}", response_model=FeeStructureResponse)
+async def update_fee_structure(
+    structure_id: int,
+    payload: FeeStructureCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> FeeStructureResponse:
+    """Update an existing fee structure."""
+    result = await db.execute(
+        select(FeeStructure).where(FeeStructure.id == structure_id),
+    )
+    structure = result.scalar_one_or_none()
+    if not structure:
+        raise HTTPException(status_code=404, detail="Fee structure not found")
+
+    for field, value in payload.model_dump().items():
+        setattr(structure, field, value)
+    await db.flush()
+    await db.refresh(structure)
+    return FeeStructureResponse.model_validate(structure)
+
+
+@router.delete("/structures/{structure_id}", response_model=MessageResponse)
+async def delete_fee_structure(
+    structure_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
+) -> MessageResponse:
+    """Delete a fee structure (only if no payments recorded)."""
+    result = await db.execute(
+        select(FeeStructure).where(FeeStructure.id == structure_id),
+    )
+    structure = result.scalar_one_or_none()
+    if not structure:
+        raise HTTPException(status_code=404, detail="Fee structure not found")
+
+    txn_count = await db.execute(
+        select(func.count(FeeTransaction.id)).where(
+            FeeTransaction.fee_structure_id == structure_id,
+        )
+    )
+    if (txn_count.scalar() or 0) > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete: payments already recorded against this structure",
+        )
+
+    await db.delete(structure)
+    await db.flush()
+    return MessageResponse(message="Fee structure deleted")
+
+
+# ── Payments ─────────────────────────────────────────────────────────────
+
+
+@router.post("/pay", response_model=FeeReceiptResponse, status_code=status.HTTP_201_CREATED)
+async def record_payment(
+    payload: FeeTransactionCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> FeeReceiptResponse:
+    """Record a fee payment and generate a receipt."""
+    # Validate student
+    student = await db.execute(
+        select(Student).where(Student.id == payload.student_id),
+    )
+    if not student.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # Validate fee structure
+    structure = await db.execute(
+        select(FeeStructure).where(FeeStructure.id == payload.fee_structure_id),
+    )
+    if not structure.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Fee structure not found")
+
+    receipt_number = await _generate_receipt_number(db)
+
+    txn = FeeTransaction(
+        student_id=payload.student_id,
+        fee_structure_id=payload.fee_structure_id,
+        amount_paid=payload.amount_paid,
+        payment_mode=PaymentMode(payload.payment_mode),
+        razorpay_payment_id=payload.razorpay_payment_id,
+        receipt_number=receipt_number,
+    )
+    db.add(txn)
+    await db.flush()
+    await db.refresh(txn)
+    return FeeReceiptResponse.model_validate(txn)
+
+
+# ── Defaulters ──────────────────────────────────────────────────────────
+
+
+@router.get("/defaulters", response_model=List[DefaulterResponse])
+async def get_defaulters(
+    class_id: int | None = Query(None),
+    academic_year_id: int | None = Query(None),
+    as_of_date: date | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> List[DefaulterResponse]:
+    """List students with unpaid or partially paid fees."""
+    cutoff = as_of_date or date.today()
+
+    # All fee structures due by cutoff
+    fs_filters = [FeeStructure.due_date <= cutoff]
+    if class_id:
+        fs_filters.append(FeeStructure.class_id == class_id)
+    if academic_year_id:
+        fs_filters.append(FeeStructure.academic_year_id == academic_year_id)
+
+    from app.models.academic import Class
+
+    paid_subq = (
+        select(
+            FeeTransaction.student_id,
+            FeeTransaction.fee_structure_id,
+            func.coalesce(func.sum(FeeTransaction.amount_paid), 0).label("total_paid"),
+        )
+        .group_by(FeeTransaction.student_id, FeeTransaction.fee_structure_id)
+        .subquery()
+    )
+
+    query = (
+        select(
+            Student.id.label("student_id"),
+            Student.admission_number,
+            (Student.first_name + " " + Student.last_name).label("student_name"),
+            Class.name.label("class_name"),
+            FeeStructure.fee_head,
+            FeeStructure.amount.label("amount_due"),
+            func.coalesce(paid_subq.c.total_paid, 0).label("amount_paid"),
+            (FeeStructure.amount - func.coalesce(paid_subq.c.total_paid, 0)).label("balance"),
+            FeeStructure.due_date,
+        )
+        .join(FeeStructure, FeeStructure.class_id == Student.class_id)
+        .join(Class, Class.id == Student.class_id)
+        .outerjoin(
+            paid_subq,
+            and_(
+                paid_subq.c.student_id == Student.id,
+                paid_subq.c.fee_structure_id == FeeStructure.id,
+            ),
+        )
+        .where(
+            and_(
+                Student.is_active == True,  # noqa: E712
+                *fs_filters,
+                (FeeStructure.amount - func.coalesce(paid_subq.c.total_paid, 0)) > 0,
+            )
+        )
+        .order_by(Student.id, FeeStructure.due_date)
+    )
+
+    result = await db.execute(query)
+    return [
+        DefaulterResponse(
+            student_id=row.student_id,
+            admission_number=row.admission_number,
+            student_name=row.student_name,
+            class_name=row.class_name,
+            fee_head=row.fee_head,
+            amount_due=float(row.amount_due),
+            amount_paid=float(row.amount_paid),
+            balance=float(row.balance),
+            due_date=row.due_date,
+        )
+        for row in result.all()
+    ]
+
+
+# ── Razorpay Webhook ────────────────────────────────────────────────────
+
+
+@router.post("/razorpay/webhook", status_code=status.HTTP_200_OK)
+async def razorpay_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, str]:
+    """Handle Razorpay payment webhooks.
+
+    Verifies the signature, extracts payment info, and updates the
+    corresponding transaction record.
+    """
+    signature = request.headers.get("X-Razorpay-Signature", "")
+    payload = await request.json()
+
+    event = await razorpay_service.process_webhook(payload, signature)
+    if event is None:
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+    event_type = event.get("event", "")
+    if event_type == "payment.captured":
+        payment = event.get("payload", {}).get("payment", {}).get("entity", {})
+        razorpay_payment_id = payment.get("id")
+        if razorpay_payment_id:
+            result = await db.execute(
+                select(FeeTransaction).where(
+                    FeeTransaction.razorpay_payment_id == razorpay_payment_id,
+                )
+            )
+            txn = result.scalar_one_or_none()
+            if txn:
+                txn.paid_at = datetime.utcnow()
+                await db.flush()
+
+    return {"status": "ok"}
