@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import TeacherAttendance from "../../components/teacher/TeacherAttendance.tsx";
+---
+
+<PortalLayout title="Attendance — Teacher — Knowledge Academy">
+  <TeacherAttendance client:only="react" />
+</PortalLayout>

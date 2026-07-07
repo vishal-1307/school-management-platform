@@ -76,6 +76,51 @@ async def list_staff(
     return [StaffResponse.model_validate(s) for s in result.scalars().all()]
 
 
+@router.get("/me", response_model=StaffResponse)
+async def get_my_staff_record(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.TEACHER)),
+) -> StaffResponse:
+    """The signed-in teacher's own record incl. teaching assignments (SRS 7.2)."""
+    if current_user.linked_staff_id is None:
+        raise HTTPException(status_code=409, detail="Your login is not linked to a staff record")
+    result = await db.execute(
+        select(Staff)
+        .options(selectinload(Staff.subject_assignments))
+        .where(Staff.id == current_user.linked_staff_id),
+    )
+    staff = result.scalar_one_or_none()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff record not found")
+    return StaffResponse.model_validate(staff)
+
+
+@router.put("/me", response_model=StaffResponse)
+async def update_my_staff_record(
+    payload: StaffUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.TEACHER)),
+) -> StaffResponse:
+    """Teacher self-service profile update — contact details and photo only (SRS 7.9)."""
+    if current_user.linked_staff_id is None:
+        raise HTTPException(status_code=409, detail="Your login is not linked to a staff record")
+    staff = await db.get(Staff, current_user.linked_staff_id)
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff record not found")
+
+    allowed = {"phone", "email", "photo_url", "qualification"}
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        if field in allowed:
+            setattr(staff, field, value)
+    await db.flush()
+    result = await db.execute(
+        select(Staff)
+        .options(selectinload(Staff.subject_assignments))
+        .where(Staff.id == staff.id),
+    )
+    return StaffResponse.model_validate(result.scalar_one())
+
+
 @router.get("/{staff_id}", response_model=StaffResponse)
 async def get_staff(
     staff_id: int,

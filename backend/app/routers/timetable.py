@@ -119,6 +119,22 @@ async def get_weekly_timetable(
     )
 
 
+@router.get("/my", response_model=List[TimetableSlotResponse])
+async def my_timetable(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.TEACHER)),
+) -> List[TimetableSlotResponse]:
+    """The signed-in teacher's personal weekly schedule (SRS 7.2)."""
+    if current_user.linked_staff_id is None:
+        return []
+    result = await db.execute(
+        select(TimetableSlot)
+        .where(TimetableSlot.staff_id == current_user.linked_staff_id)
+        .order_by(TimetableSlot.period_number)
+    )
+    return [TimetableSlotResponse.model_validate(s) for s in result.scalars().all()]
+
+
 @router.put("/slots/{slot_id}", response_model=TimetableSlotResponse)
 async def update_slot(
     slot_id: int,
