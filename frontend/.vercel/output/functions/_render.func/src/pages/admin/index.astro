@@ -1,9 +1,0 @@
----
-export const prerender = false;
-import PortalLayout from "../../layouts/PortalLayout.astro";
-import AdminDashboard from "../../components/admin/AdminDashboard.tsx";
----
-
-<PortalLayout title="Admin Dashboard — Knowledge Academy">
-  <AdminDashboard client:only="react" />
-</PortalLayout>

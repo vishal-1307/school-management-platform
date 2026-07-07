@@ -27,3 +27,7 @@ frontend/.astro/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Vercel build output
+.vercel/
+frontend/.vercel/
