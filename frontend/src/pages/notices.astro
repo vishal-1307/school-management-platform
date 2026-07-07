@@ -1,29 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-
-const notices = [
-  {
-    date: "June 15, 2026",
-    title: "Reopening of School after Summer Vacation",
-    category: "General",
-    body: "Classes for Nursery to Class X will resume on Monday, July 1st, 2026. Uniforms and study materials can be collected from the school desk.",
-    pdf: "#",
-  },
-  {
-    date: "May 10, 2026",
-    title: "Unit Test-I Exam Datesheet & Syllabus",
-    category: "Examination",
-    body: "The Unit Test-I examinations are scheduled to commence from July 20th, 2026. The detailed Datesheet and syllabus copies have been uploaded to respective student portals.",
-    pdf: "#",
-  },
-  {
-    date: "April 20, 2026",
-    title: "Notice regarding Fee Installment Payment",
-    category: "Fees",
-    body: "This is a reminder that the First Term fee payment is due on or before June 30th, 2026. Payments can be completed online via the Student Portal or in cash at the school desk.",
-    pdf: "#",
-  },
-];
+import NoticesList from "../components/public/NoticesList.tsx";
 ---
 
 <BaseLayout title="Notices & Circulars — Knowledge Development Kindergarten Academy">
@@ -37,37 +14,8 @@ const notices = [
     </div>
   </section>
 
-  <!-- Notices List -->
+  <!-- Notices List (live from backend, with built-in fallback) -->
   <section class="max-w-4xl mx-auto px-4 py-20 space-y-8">
-    {notices.map(notice => (
-      <div class="bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition">
-        <!-- Date column -->
-        <div class="flex-shrink-0 md:w-36 text-slate-400 font-extrabold text-sm">
-          {notice.date}
-        </div>
-        
-        <!-- Details column -->
-        <div class="flex-1 space-y-4">
-          <div class="space-y-2">
-            <span class={`inline-block px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
-              notice.category === 'Examination' ? 'bg-rose-50 text-rose-700 border border-rose-100/50' :
-              notice.category === 'Fees' ? 'bg-amber-50 text-amber-700 border border-amber-100/50' :
-              'bg-indigo-50 text-indigo-700 border border-indigo-100/50'
-            }`}>{notice.category}</span>
-            <h3 class="text-xl font-extrabold text-slate-800 leading-snug">{notice.title}</h3>
-            <p class="text-sm text-slate-500 font-semibold leading-relaxed">{notice.body}</p>
-          </div>
-          <div class="pt-2">
-            <a
-              href={notice.pdf}
-              class="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/50 rounded-xl text-xs font-bold transition shadow-sm"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              Download Circular (PDF)
-            </a>
-          </div>
-        </div>
-      </div>
-    ))}
+    <NoticesList client:load />
   </section>
 </BaseLayout>

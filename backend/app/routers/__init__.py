@@ -15,10 +15,14 @@ from app.routers.reports import router as reports_router
 from app.routers.settings import router as settings_router
 from app.routers.users import router as users_router
 from app.routers.webhooks import router as webhooks_router
+from app.routers.public import router as public_router
+from app.routers.contact import router as contact_router
 
 __all__ = [
     "users_router",
     "webhooks_router",
+    "public_router",
+    "contact_router",
     "auth_router",
     "students_router",
     "staff_router",

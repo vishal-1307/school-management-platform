@@ -1,20 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-
-const studentAchievements = [
-  {
-    name: "Master Aarav Sharma (Class X)",
-    award: "State Science Talent Search Winner",
-    desc: "Awarded first place for designing a low-cost water purification model using smart sensors.",
-    image: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&fit=crop",
-  },
-  {
-    name: "Miss Riya Verma (Class VIII)",
-    award: "District Under-14 Chess Champion",
-    desc: "Maintained a clean sweep of 7 rounds to win the gold medal in the inter-school chess championship.",
-    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&fit=crop",
-  },
-];
+import AchievementsList from "../components/public/AchievementsList.tsx";
 
 const schoolAwards = [
   {
@@ -48,22 +34,8 @@ const schoolAwards = [
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      {studentAchievements.map(ach => (
-        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row gap-6 items-center hover:shadow-md transition">
-          <img
-            src={ach.image}
-            alt={ach.name}
-            class="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl object-cover shadow border border-slate-100 flex-shrink-0"
-          />
-          <div class="space-y-2">
-            <span class="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold uppercase tracking-wider">{ach.award}</span>
-            <h3 class="font-extrabold text-slate-800 text-lg leading-tight">{ach.name}</h3>
-            <p class="text-xs text-slate-500 font-semibold leading-relaxed">{ach.desc}</p>
-          </div>
-        </div>
-      ))}
-    </div>
+    <!-- live from backend CMS, with built-in fallback -->
+    <AchievementsList client:load />
   </section>
 
   <!-- School Awards -->

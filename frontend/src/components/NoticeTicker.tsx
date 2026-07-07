@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { publicGet } from "../lib/api";
 
 interface Notice {
   id: number;
@@ -7,7 +8,14 @@ interface Notice {
   date: string;
 }
 
-const notices: Notice[] = [
+interface ApiNotice {
+  id: number;
+  title: string;
+  published_at: string | null;
+}
+
+// Fallback shown until (and unless) live notices load from the backend.
+const fallbackNotices: Notice[] = [
   { id: 1, text: "Admissions open for 2025–26 session — Limited seats available!", isNew: true, date: "Jun 15" },
   { id: 2, text: "Annual Day celebration on 28th July 2025 — All parents are invited", isNew: true, date: "Jun 12" },
   { id: 3, text: "Summer vacation: 15th May to 30th June 2025", isNew: false, date: "May 10" },
@@ -16,9 +24,30 @@ const notices: Notice[] = [
   { id: 6, text: "New smart classrooms inaugurated — State-of-the-art learning!", isNew: false, date: "May 25" },
 ];
 
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+
+function toTickerNotice(notice: ApiNotice): Notice {
+  const published = notice.published_at ? new Date(notice.published_at) : null;
+  return {
+    id: notice.id,
+    text: notice.title,
+    isNew: published !== null && Date.now() - published.getTime() < TWO_WEEKS_MS,
+    date: published
+      ? published.toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+      : "",
+  };
+}
+
 export default function NoticeTicker() {
   const [isPaused, setIsPaused] = useState(false);
+  const [notices, setNotices] = useState<Notice[]>(fallbackNotices);
   const tickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    publicGet<ApiNotice[]>("/api/public/notices?limit=10").then((live) => {
+      if (live && live.length > 0) setNotices(live.map(toTickerNotice));
+    });
+  }, []);
 
   return (
     <div

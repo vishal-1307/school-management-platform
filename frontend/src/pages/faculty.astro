@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import FacultyGrid from "../components/public/FacultyGrid.tsx";
 
 const adminLeaders = [
   {
@@ -15,55 +16,6 @@ const adminLeaders = [
     qualification: "M.Sc., M.Ed.",
     experience: "15+ Years",
     image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&fit=crop",
-  },
-];
-
-const departments = [
-  {
-    name: "Primary & Secondary Faculty",
-    teachers: [
-      {
-        name: "Mrs. Sunita Kaul",
-        subject: "Mathematics",
-        qualification: "M.Sc. (Maths), B.Ed.",
-        image: "https://images.unsplash.com/photo-1580894732444-8febeb78fb3e?w=300&fit=crop",
-      },
-      {
-        name: "Mr. Ramesh Joshi",
-        subject: "Science & Physics",
-        qualification: "M.Sc. (Physics), B.Ed.",
-        image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&fit=crop",
-      },
-      {
-        name: "Mrs. Priya Sen",
-        subject: "English Literature",
-        qualification: "M.A. (English), B.Ed.",
-        image: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=300&fit=crop",
-      },
-      {
-        name: "Mr. Amit Pathak",
-        subject: "Social Sciences",
-        qualification: "M.A. (History), B.Ed.",
-        image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&fit=crop",
-      },
-    ],
-  },
-  {
-    name: "Kindergarten & Pre-Primary",
-    teachers: [
-      {
-        name: "Mrs. Meera Das",
-        subject: "Nursery Teacher",
-        qualification: "N.T.T., Montessori Trained",
-        image: "https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=300&fit=crop",
-      },
-      {
-        name: "Ms. Shalini Roy",
-        subject: "LKG Coordinator",
-        qualification: "B.A., Montessori Certified",
-        image: "https://images.unsplash.com/photo-1594744803329-e58b31de215f?w=300&fit=crop",
-      },
-    ],
   },
 ];
 ---
@@ -107,34 +59,6 @@ const departments = [
     </div>
   </section>
 
-  <!-- Faculty Departments -->
-  {departments.map(dept => (
-    <section class="bg-slate-50 border-t border-slate-100 py-20">
-      <div class="max-w-6xl mx-auto px-4 space-y-12">
-        <div class="text-center max-w-2xl mx-auto space-y-4">
-          <h2 class="text-3xl font-extrabold font-heading text-slate-900">{dept.name}</h2>
-          <p class="text-slate-500 font-semibold">
-            Highly trained subject specialists and early-learning experts.
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {dept.teachers.map(teacher => (
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center hover:shadow-md transition duration-300 space-y-4">
-              <img
-                src={teacher.image}
-                alt={teacher.name}
-                class="w-32 h-32 rounded-full object-cover mx-auto shadow border border-slate-100 aspect-square"
-              />
-              <div class="space-y-1">
-                <h3 class="font-bold text-slate-800 leading-tight">{teacher.name}</h3>
-                <p class="text-indigo-600 text-xs font-bold">{teacher.subject}</p>
-                <p class="text-xs text-slate-500 font-semibold leading-relaxed">{teacher.qualification}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  ))}
+  <!-- Faculty Directory (live from backend, with built-in fallback) -->
+  <FacultyGrid client:load />
 </BaseLayout>

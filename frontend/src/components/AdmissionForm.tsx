@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { publicPost } from "../lib/api";
 
 interface FormData {
   childName: string;
@@ -87,10 +88,18 @@ export default function AdmissionForm() {
 
     setStatus("submitting");
 
-    // Simulate API call
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Admission Enquiry Submitted:", formData);
+      await publicPost("/api/admissions/enquiry", {
+        child_name: formData.childName,
+        dob: formData.dateOfBirth || null,
+        class_applying: formData.classApplying,
+        parent_name: formData.parentName,
+        phone: formData.phone.replace(/\s/g, ""),
+        email: formData.email || null,
+        address: formData.address || null,
+        source: formData.source || null,
+        message: formData.message || null,
+      });
       setStatus("success");
       setFormData(initialFormData);
     } catch {

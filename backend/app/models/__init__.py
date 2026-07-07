@@ -6,6 +6,7 @@ from app.models.audit import AuditLog  # noqa: F401
 from app.models.attendance import Attendance, AttendanceStatus, StaffAttendance  # noqa: F401
 from app.models.cms import Achievement, GalleryAlbum, GalleryImage, NewsEvent  # noqa: F401
 from app.models.communication import DeliveryStatus, WhatsAppMessageLog  # noqa: F401
+from app.models.contact import ContactMessage  # noqa: F401
 from app.models.exam import Exam, ExamSubject, Mark  # noqa: F401
 from app.models.fee import FeeStructure, FeeTransaction, PaymentMode  # noqa: F401
 from app.models.homework import Homework, HomeworkSubmission, SubmissionStatus  # noqa: F401
