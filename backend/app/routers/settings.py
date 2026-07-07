@@ -68,6 +68,49 @@ async def update_school_profile(
     return school
 
 
+# Automation toggles (SRS 6.14) — stored in School.settings JSON
+AUTOMATION_DEFAULTS = {
+    "absent_alerts": False,
+    "fee_reminders": False,
+    "notice_broadcast": False,
+    "results_notification": False,
+}
+
+
+@router.get("/automation")
+async def get_automation_settings(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> dict:
+    """Current automation on/off switches."""
+    result = await db.execute(select(School))
+    school = result.scalars().first()
+    stored = (school.settings or {}).get("automation", {}) if school else {}
+    return {**AUTOMATION_DEFAULTS, **stored}
+
+
+@router.put("/automation")
+async def update_automation_settings(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
+) -> dict:
+    """Toggle automations; unknown keys are ignored."""
+    result = await db.execute(select(School))
+    school = result.scalars().first()
+    if not school:
+        raise HTTPException(status_code=404, detail="School profile not set up yet")
+    current = {**AUTOMATION_DEFAULTS, **(school.settings or {}).get("automation", {})}
+    for key in AUTOMATION_DEFAULTS:
+        if key in payload:
+            current[key] = bool(payload[key])
+    new_settings = dict(school.settings or {})
+    new_settings["automation"] = current
+    school.settings = new_settings
+    await db.flush()
+    return current
+
+
 # Academic Years Endpoints
 @router.get("/academic-years", response_model=list[AcademicYearResponse])
 async def list_academic_years(db: AsyncSession = Depends(get_db)):

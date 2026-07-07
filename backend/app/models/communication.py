@@ -18,6 +18,9 @@ class DeliveryStatus(str, enum.Enum):
     SENT = "sent"
     DELIVERED = "delivered"
     FAILED = "failed"
+    # Automation ran but WhatsApp credentials are not configured — the
+    # message is logged so the school sees what WOULD have been sent.
+    SKIPPED = "skipped"
 
 
 class WhatsAppMessageLog(Base):

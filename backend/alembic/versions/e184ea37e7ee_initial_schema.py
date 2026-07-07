@@ -114,7 +114,7 @@ def upgrade() -> None:
     sa.Column('message_type', sa.String(length=30), nullable=False, comment='template/text/media'),
     sa.Column('content_summary', sa.Text(), nullable=True),
     sa.Column('template_name', sa.String(length=100), nullable=True),
-    sa.Column('delivery_status', sa.Enum('QUEUED', 'SENT', 'DELIVERED', 'FAILED', name='delivery_status', create_constraint=True), server_default='queued', nullable=False),
+    sa.Column('delivery_status', sa.Enum('QUEUED', 'SENT', 'DELIVERED', 'FAILED', 'SKIPPED', name='delivery_status', create_constraint=True), server_default='queued', nullable=False),
     sa.Column('sent_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )

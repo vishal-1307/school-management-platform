@@ -100,6 +100,27 @@ async def list_exams(
     ]
 
 
+@router.get("/marks", response_model=List[dict])
+async def list_marks(
+    exam_subject_id: int = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*TEACHER_ROLES)),
+) -> List[dict]:
+    """Marks already entered for an exam subject (for review/edit grids)."""
+    result = await db.execute(
+        select(Mark).where(Mark.exam_subject_id == exam_subject_id).order_by(Mark.student_id)
+    )
+    return [
+        {
+            "student_id": m.student_id,
+            "marks_obtained": m.marks_obtained,
+            "grade": m.grade,
+            "is_submitted": m.is_submitted,
+        }
+        for m in result.scalars().all()
+    ]
+
+
 @router.get("/{exam_id}")
 async def get_exam(
     exam_id: int,

@@ -22,6 +22,9 @@ from app.routers import (
     webhooks_router,
     public_router,
     contact_router,
+    uploads_router,
+    communication_router,
+    leaves_router,
 )
 
 from contextlib import asynccontextmanager
@@ -103,3 +106,6 @@ app.include_router(users_router, prefix="/api")
 app.include_router(webhooks_router, prefix="/api")
 app.include_router(public_router, prefix="/api")
 app.include_router(contact_router, prefix="/api")
+app.include_router(uploads_router, prefix="/api")
+app.include_router(communication_router, prefix="/api")
+app.include_router(leaves_router, prefix="/api")

@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import AdminUsers from "../../components/admin/AdminUsers.tsx";
+---
+
+<PortalLayout title="Users — Admin — Knowledge Academy">
+  <AdminUsers client:only="react" />
+</PortalLayout>

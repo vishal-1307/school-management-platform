@@ -10,6 +10,7 @@ from app.models.contact import ContactMessage  # noqa: F401
 from app.models.exam import Exam, ExamSubject, Mark  # noqa: F401
 from app.models.fee import FeeStructure, FeeTransaction, PaymentMode  # noqa: F401
 from app.models.homework import Homework, HomeworkSubmission, SubmissionStatus  # noqa: F401
+from app.models.leave import LeaveApplication, LeaveStatus  # noqa: F401
 from app.models.notice import Notice, NoticeAudience  # noqa: F401
 from app.models.school import School  # noqa: F401
 from app.models.staff import Staff, StaffSubjectAssignment  # noqa: F401
