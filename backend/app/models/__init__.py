@@ -2,6 +2,7 @@
 
 from app.models.academic import AcademicYear, Class, Section, Subject  # noqa: F401
 from app.models.admission import AdmissionEnquiry  # noqa: F401
+from app.models.audit import AuditLog  # noqa: F401
 from app.models.attendance import Attendance, AttendanceStatus, StaffAttendance  # noqa: F401
 from app.models.cms import Achievement, GalleryAlbum, GalleryImage, NewsEvent  # noqa: F401
 from app.models.communication import DeliveryStatus, WhatsAppMessageLog  # noqa: F401

@@ -13,8 +13,12 @@ from app.routers.admissions import router as admissions_router
 from app.routers.cms import router as cms_router
 from app.routers.reports import router as reports_router
 from app.routers.settings import router as settings_router
+from app.routers.users import router as users_router
+from app.routers.webhooks import router as webhooks_router
 
 __all__ = [
+    "users_router",
+    "webhooks_router",
     "auth_router",
     "students_router",
     "staff_router",

@@ -18,6 +18,8 @@ from app.routers import (
     cms_router,
     reports_router,
     settings_router,
+    users_router,
+    webhooks_router,
 )
 
 from contextlib import asynccontextmanager
@@ -95,3 +97,5 @@ app.include_router(admissions_router, prefix="/api")
 app.include_router(cms_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
+app.include_router(webhooks_router, prefix="/api")
