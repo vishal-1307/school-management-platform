@@ -7,6 +7,9 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
+
+from app.config import settings
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -318,6 +321,176 @@ async def get_defaulters(
         )
         for row in result.all()
     ]
+
+
+# ── Student self-service (SRS 8.7) ──────────────────────────────────────
+
+
+@router.get("/my")
+async def my_fee_status(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.STUDENT, UserRole.PARENT)),
+) -> dict:
+    """Fee dues, payment history, and balances for the signed-in student."""
+    if current_user.linked_student_id is None:
+        raise HTTPException(status_code=409, detail="Your login is not linked to a student record")
+    student = await db.get(Student, current_user.linked_student_id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student record not found")
+
+    structures = (
+        await db.execute(
+            select(FeeStructure)
+            .where(FeeStructure.class_id == student.class_id)
+            .order_by(FeeStructure.due_date)
+        )
+    ).scalars().all()
+    transactions = (
+        await db.execute(
+            select(FeeTransaction)
+            .where(FeeTransaction.student_id == student.id)
+            .order_by(FeeTransaction.paid_at.desc())
+        )
+    ).scalars().all()
+
+    paid_by_structure: dict[int, float] = {}
+    for txn in transactions:
+        paid_by_structure[txn.fee_structure_id] = (
+            paid_by_structure.get(txn.fee_structure_id, 0.0) + txn.amount_paid
+        )
+
+    return {
+        "student_id": student.id,
+        "items": [
+            {
+                "fee_structure_id": s.id,
+                "fee_head": s.fee_head,
+                "term": s.term,
+                "amount": s.amount,
+                "due_date": s.due_date.isoformat(),
+                "paid": paid_by_structure.get(s.id, 0.0),
+                "balance": max(0.0, s.amount - paid_by_structure.get(s.id, 0.0)),
+            }
+            for s in structures
+        ],
+        "transactions": [
+            {
+                "id": t.id,
+                "receipt_number": t.receipt_number,
+                "amount_paid": t.amount_paid,
+                "payment_mode": t.payment_mode.value,
+                "paid_at": t.paid_at.isoformat() if t.paid_at else None,
+            }
+            for t in transactions
+        ],
+    }
+
+
+# ── Razorpay online payment (SRS 8.7 "Pay Now", FR-12) ──────────────────
+
+
+class RazorpayOrderRequest(BaseModel):
+    fee_structure_id: int
+
+
+class RazorpayVerifyRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    fee_structure_id: int
+    amount: float = Field(..., gt=0)
+
+
+@router.post("/razorpay/order")
+async def create_razorpay_order(
+    payload: RazorpayOrderRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.STUDENT, UserRole.PARENT)),
+) -> dict:
+    """Create a Razorpay order for the outstanding balance of a fee head."""
+    if not razorpay_service.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Online payments are not configured yet — pay at the school office",
+        )
+    if current_user.linked_student_id is None:
+        raise HTTPException(status_code=409, detail="Your login is not linked to a student record")
+
+    structure = await db.get(FeeStructure, payload.fee_structure_id)
+    if structure is None:
+        raise HTTPException(status_code=404, detail="Fee structure not found")
+
+    paid = (
+        await db.execute(
+            select(func.coalesce(func.sum(FeeTransaction.amount_paid), 0)).where(
+                FeeTransaction.student_id == current_user.linked_student_id,
+                FeeTransaction.fee_structure_id == structure.id,
+            )
+        )
+    ).scalar() or 0
+    balance = structure.amount - float(paid)
+    if balance <= 0:
+        raise HTTPException(status_code=409, detail="This fee is already fully paid")
+
+    order = await razorpay_service.create_order(
+        amount_paise=int(round(balance * 100)),
+        receipt=f"stu{current_user.linked_student_id}-fs{structure.id}",
+        notes={
+            "student_id": str(current_user.linked_student_id),
+            "fee_structure_id": str(structure.id),
+        },
+    )
+    return {
+        "order_id": order["id"],
+        "amount": order["amount"],
+        "currency": order["currency"],
+        "key_id": settings.razorpay_key_id,
+        "fee_head": structure.fee_head,
+    }
+
+
+@router.post("/razorpay/verify", response_model=FeeReceiptResponse, status_code=status.HTTP_201_CREATED)
+async def verify_razorpay_payment(
+    payload: RazorpayVerifyRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.STUDENT, UserRole.PARENT)),
+) -> FeeReceiptResponse:
+    """Verify a completed Razorpay checkout and record the transaction (FR-12)."""
+    if current_user.linked_student_id is None:
+        raise HTTPException(status_code=409, detail="Your login is not linked to a student record")
+
+    valid = await razorpay_service.verify_payment_signature(
+        payload.razorpay_order_id,
+        payload.razorpay_payment_id,
+        payload.razorpay_signature,
+    )
+    if not valid:
+        raise HTTPException(status_code=400, detail="Payment signature verification failed")
+
+    # Idempotency: never record the same payment twice.
+    existing = (
+        await db.execute(
+            select(FeeTransaction).where(
+                FeeTransaction.razorpay_payment_id == payload.razorpay_payment_id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return FeeReceiptResponse.model_validate(existing)
+
+    receipt_number = await _generate_receipt_number(db)
+    txn = FeeTransaction(
+        student_id=current_user.linked_student_id,
+        fee_structure_id=payload.fee_structure_id,
+        amount_paid=payload.amount,
+        payment_mode=PaymentMode.ONLINE,
+        razorpay_payment_id=payload.razorpay_payment_id,
+        receipt_number=receipt_number,
+    )
+    db.add(txn)
+    await db.flush()
+    await db.refresh(txn)
+    return FeeReceiptResponse.model_validate(txn)
 
 
 # ── Razorpay Webhook ────────────────────────────────────────────────────

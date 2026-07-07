@@ -100,6 +100,34 @@ async def list_exams(
     ]
 
 
+@router.get("/my-results", response_model=List[dict])
+async def my_published_results(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.STUDENT, UserRole.PARENT)),
+) -> List[dict]:
+    """Published exams for the signed-in student's class (SRS 8.4)."""
+    if current_user.linked_student_id is None:
+        return []
+    student = await db.get(Student, current_user.linked_student_id)
+    if student is None:
+        return []
+    result = await db.execute(
+        select(Exam)
+        .where(Exam.class_id == student.class_id, Exam.results_published)
+        .order_by(Exam.start_date.desc())
+    )
+    return [
+        {
+            "id": e.id,
+            "name": e.name,
+            "exam_type": e.exam_type,
+            "start_date": e.start_date.isoformat(),
+            "student_id": student.id,
+        }
+        for e in result.scalars().all()
+    ]
+
+
 @router.get("/marks", response_model=List[dict])
 async def list_marks(
     exam_subject_id: int = Query(...),
@@ -322,7 +350,11 @@ async def get_report_card(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(*TEACHER_ROLES, UserRole.STUDENT, UserRole.PARENT)),
 ) -> ReportCardResponse:
-    """Generate a report card for a student in a specific exam."""
+    """Generate a report card for a student in a specific exam.
+
+    Students/parents may only open their own linked student's card, and
+    only after the admin publishes results (FR-16).
+    """
     # Fetch exam with subjects
     exam_result = await db.execute(
         select(Exam).options(
@@ -333,6 +365,14 @@ async def get_report_card(
     exam = exam_result.scalar_one_or_none()
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
+
+    if current_user.role in (UserRole.STUDENT, UserRole.PARENT):
+        if current_user.linked_student_id != student_id:
+            raise HTTPException(status_code=403, detail="Not your report card")
+        if not exam.results_published:
+            raise HTTPException(
+                status_code=403, detail="Results have not been published yet"
+            )
 
     # Fetch student
     student_result = await db.execute(select(Student).where(Student.id == student_id))

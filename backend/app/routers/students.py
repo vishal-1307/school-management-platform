@@ -133,6 +133,25 @@ async def list_students(
     )
 
 
+@router.get("/me", response_model=StudentResponse)
+async def get_my_student_record(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.STUDENT, UserRole.PARENT)),
+) -> StudentResponse:
+    """The signed-in student's own record (SRS 8.8)."""
+    if current_user.linked_student_id is None:
+        raise HTTPException(status_code=409, detail="Your login is not linked to a student record")
+    result = await db.execute(
+        select(Student)
+        .options(selectinload(Student.parents))
+        .where(Student.id == current_user.linked_student_id),
+    )
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student record not found")
+    return StudentResponse.model_validate(student)
+
+
 @router.get("/{student_id}", response_model=StudentResponse)
 async def get_student(
     student_id: int,

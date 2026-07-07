@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import StudentTimetable from "../../components/student/StudentTimetable.tsx";
+---
+
+<PortalLayout title="Timetable — Student — Knowledge Academy">
+  <StudentTimetable client:only="react" />
+</PortalLayout>

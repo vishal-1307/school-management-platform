@@ -109,6 +109,42 @@ async def get_attendance_history(
     return [AttendanceResponse.model_validate(a) for a in result.scalars().all()]
 
 
+@router.get("/my", response_model=dict)
+async def my_attendance(
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.STUDENT, UserRole.PARENT)),
+) -> dict:
+    """The signed-in student's own attendance history + percentage (SRS 8.2)."""
+    if current_user.linked_student_id is None:
+        return {"records": [], "present": 0, "absent": 0, "late": 0, "percentage": None}
+
+    query = select(Attendance).where(Attendance.student_id == current_user.linked_student_id)
+    if date_from:
+        query = query.where(Attendance.date >= date_from)
+    if date_to:
+        query = query.where(Attendance.date <= date_to)
+    query = query.order_by(Attendance.date.desc())
+    result = await db.execute(query)
+    records = result.scalars().all()
+
+    present = sum(1 for r in records if r.status == AttendanceStatus.PRESENT)
+    late = sum(1 for r in records if r.status == AttendanceStatus.LATE)
+    absent = sum(1 for r in records if r.status == AttendanceStatus.ABSENT)
+    total = len(records)
+    return {
+        "records": [
+            {"date": r.date.isoformat(), "status": r.status.value, "period": r.period}
+            for r in records
+        ],
+        "present": present,
+        "absent": absent,
+        "late": late,
+        "percentage": round((present + late) / total * 100, 1) if total else None,
+    }
+
+
 # ── Staff attendance (SRS 6.3 / 6.6) ────────────────────────────────────
 
 
