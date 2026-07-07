@@ -1,0 +1,14 @@
+C:\HDDD\Projects\Knowledge\backend\venv\Lib\site-packages\razorpay\client.py:4: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+INFO:     Started server process [28128]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8123 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60691 - "POST /api/fees/pay HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60692 - "GET /api/fees/receipts/1/html HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60693 - "GET /api/fees/receipts/1/html HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60694 - "GET /api/fees/transactions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60695 - "GET /api/fees/defaulters HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60696 - "POST /api/attendance/staff/mark HTTP/1.1" 201 Created
+INFO:     127.0.0.1:60697 - "GET /api/attendance/staff?date=2026-07-07 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49310 - "POST /api/fees/structures HTTP/1.1" 201 Created

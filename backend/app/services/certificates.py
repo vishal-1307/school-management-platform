@@ -32,6 +32,23 @@ async def generate_tc(student_data: Dict[str, Any], school_data: Dict[str, Any])
     )
 
 
+async def generate_receipt(txn_data: Dict[str, Any], school_data: Dict[str, Any]) -> str:
+    """Render a fee receipt as printable HTML.
+
+    Args:
+        txn_data: Dict with ``receipt_number``, ``paid_on``, ``student_name``,
+            ``admission_number``, ``class_name``, ``fee_head``, ``term``,
+            ``payment_mode``, ``amount_paid``, ``razorpay_payment_id``.
+        school_data: Dict with ``name``, ``address``, ``affiliation_number``.
+    """
+    template = _env.get_template("receipt.html")
+    return template.render(
+        txn=txn_data,
+        school=school_data,
+        issue_date=date.today().isoformat(),
+    )
+
+
 async def generate_bonafide(student_data: Dict[str, Any], school_data: Dict[str, Any]) -> str:
     """Render a Bonafide Certificate as HTML.
 

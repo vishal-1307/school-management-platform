@@ -6,6 +6,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -161,6 +162,81 @@ async def record_payment(
     await db.flush()
     await db.refresh(txn)
     return FeeReceiptResponse.model_validate(txn)
+
+
+@router.get("/transactions", response_model=List[FeeReceiptResponse])
+async def list_transactions(
+    student_id: int | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> List[FeeReceiptResponse]:
+    """Payment history, newest first."""
+    query = select(FeeTransaction)
+    if student_id:
+        query = query.where(FeeTransaction.student_id == student_id)
+    if date_from:
+        query = query.where(FeeTransaction.paid_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        query = query.where(FeeTransaction.paid_at <= datetime.combine(date_to, datetime.max.time()))
+    query = (
+        query.order_by(FeeTransaction.paid_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    result = await db.execute(query)
+    return [FeeReceiptResponse.model_validate(t) for t in result.scalars().all()]
+
+
+@router.get("/receipts/{txn_id}/html", response_class=HTMLResponse)
+async def receipt_html(
+    txn_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES, UserRole.STUDENT, UserRole.PARENT)),
+) -> HTMLResponse:
+    """Printable fee receipt (FR-11). Students can open their own receipts."""
+    txn = await db.get(FeeTransaction, txn_id)
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    # Students/parents may only open receipts for their own linked student.
+    if current_user.role in (UserRole.STUDENT, UserRole.PARENT):
+        if current_user.linked_student_id != txn.student_id:
+            raise HTTPException(status_code=403, detail="Not your receipt")
+
+    student = await db.get(Student, txn.student_id)
+    structure = await db.get(FeeStructure, txn.fee_structure_id)
+
+    from app.models.academic import Class
+    from app.models.school import School
+    from app.services.certificates import generate_receipt
+
+    class_ = await db.get(Class, student.class_id) if student else None
+    school = (await db.execute(select(School))).scalars().first()
+
+    html = await generate_receipt(
+        {
+            "receipt_number": txn.receipt_number,
+            "paid_on": txn.paid_at.strftime("%d %b %Y") if txn.paid_at else "",
+            "student_name": f"{student.first_name} {student.last_name}" if student else "",
+            "admission_number": student.admission_number if student else "",
+            "class_name": class_.name if class_ else "",
+            "fee_head": structure.fee_head if structure else "",
+            "term": structure.term if structure else None,
+            "payment_mode": txn.payment_mode.value,
+            "amount_paid": txn.amount_paid,
+            "razorpay_payment_id": txn.razorpay_payment_id,
+        },
+        {
+            "name": school.name if school else "",
+            "address": school.address if school else "",
+            "affiliation_number": school.affiliation_number if school else "",
+        },
+    )
+    return HTMLResponse(content=html)
 
 
 # ── Defaulters ──────────────────────────────────────────────────────────

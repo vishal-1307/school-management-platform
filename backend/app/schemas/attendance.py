@@ -44,3 +44,28 @@ class AttendanceResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+class StaffAttendanceEntry(BaseModel):
+    """A single staff member's status within a bulk mark request."""
+
+    staff_id: int
+    status: str = Field(..., pattern="^(present|absent|late)$")
+
+
+class StaffAttendanceMarkRequest(BaseModel):
+    """Bulk staff attendance marking for a date (SRS 6.3/6.6)."""
+
+    date: datetime.date
+    entries: List[StaffAttendanceEntry]
+
+
+class StaffAttendanceResponse(BaseModel):
+    """Single staff attendance record."""
+
+    id: int
+    staff_id: int
+    date: datetime.date
+    status: str
+
+    model_config = {"from_attributes": True}
+

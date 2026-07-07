@@ -11,12 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.auth import require_role
-from app.models.attendance import Attendance, AttendanceStatus
+from app.models.attendance import Attendance, AttendanceStatus, StaffAttendance
 from app.models.user import User, UserRole
 from app.schemas.attendance import (
     AttendanceMarkRequest,
     AttendanceOverrideRequest,
     AttendanceResponse,
+    StaffAttendanceMarkRequest,
+    StaffAttendanceResponse,
 )
 from app.schemas.common import MessageResponse
 
@@ -105,6 +107,72 @@ async def get_attendance_history(
     query = query.order_by(Attendance.date.desc(), Attendance.student_id)
     result = await db.execute(query)
     return [AttendanceResponse.model_validate(a) for a in result.scalars().all()]
+
+
+# ── Staff attendance (SRS 6.3 / 6.6) ────────────────────────────────────
+
+
+@router.post("/staff/mark", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def mark_staff_attendance(
+    payload: StaffAttendanceMarkRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN)),
+) -> MessageResponse:
+    """Bulk-mark staff attendance for a date (upserts per staff+date)."""
+    created = 0
+    updated = 0
+    for entry in payload.entries:
+        existing_result = await db.execute(
+            select(StaffAttendance).where(
+                and_(
+                    StaffAttendance.staff_id == entry.staff_id,
+                    StaffAttendance.date == payload.date,
+                )
+            )
+        )
+        existing = existing_result.scalar_one_or_none()
+        if existing:
+            existing.status = AttendanceStatus(entry.status)
+            updated += 1
+        else:
+            db.add(
+                StaffAttendance(
+                    staff_id=entry.staff_id,
+                    date=payload.date,
+                    status=AttendanceStatus(entry.status),
+                )
+            )
+            created += 1
+
+    await db.flush()
+    return MessageResponse(message=f"Staff attendance marked: {created} created, {updated} updated")
+
+
+@router.get("/staff", response_model=List[StaffAttendanceResponse])
+async def get_staff_attendance(
+    staff_id: int | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    attendance_date: date | None = Query(None, alias="date"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN)),
+) -> List[StaffAttendanceResponse]:
+    """Staff attendance records with filters."""
+    query = select(StaffAttendance)
+    filters = []
+    if staff_id:
+        filters.append(StaffAttendance.staff_id == staff_id)
+    if attendance_date:
+        filters.append(StaffAttendance.date == attendance_date)
+    if date_from:
+        filters.append(StaffAttendance.date >= date_from)
+    if date_to:
+        filters.append(StaffAttendance.date <= date_to)
+    if filters:
+        query = query.where(and_(*filters))
+    query = query.order_by(StaffAttendance.date.desc(), StaffAttendance.staff_id)
+    result = await db.execute(query)
+    return [StaffAttendanceResponse.model_validate(r) for r in result.scalars().all()]
 
 
 @router.put("/{attendance_id}/override", response_model=AttendanceResponse)

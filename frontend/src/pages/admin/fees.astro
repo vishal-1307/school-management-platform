@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+import PortalLayout from "../../layouts/PortalLayout.astro";
+import AdminFees from "../../components/admin/AdminFees.tsx";
+---
+
+<PortalLayout title="Fees — Admin — Knowledge Academy">
+  <AdminFees client:only="react" />
+</PortalLayout>

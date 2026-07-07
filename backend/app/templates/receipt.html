@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Fee Receipt {{ txn.receipt_number }}</title>
+  <style>
+    body { font-family: Georgia, "Times New Roman", serif; color: #1e293b; margin: 0; padding: 32px; }
+    .sheet { max-width: 720px; margin: 0 auto; border: 2px solid #334155; padding: 32px 40px; }
+    .head { text-align: center; border-bottom: 2px solid #334155; padding-bottom: 16px; }
+    .head h1 { margin: 0; font-size: 22px; letter-spacing: 1px; }
+    .head p { margin: 4px 0 0; font-size: 12px; color: #475569; }
+    .title { text-align: center; margin: 20px 0; }
+    .title span { display: inline-block; border: 1px solid #334155; padding: 6px 24px; font-weight: bold; letter-spacing: 2px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    td { padding: 8px 4px; vertical-align: top; }
+    td.label { width: 40%; color: #475569; }
+    td.value { font-weight: bold; }
+    .amount-box { margin-top: 20px; border: 1px solid #334155; padding: 12px 16px; display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; }
+    .footer { margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; color: #475569; }
+    .sig { text-align: center; }
+    .sig .line { border-top: 1px solid #334155; margin-top: 40px; padding-top: 4px; width: 180px; }
+    .note { margin-top: 24px; font-size: 11px; color: #64748b; text-align: center; }
+    @media print { body { padding: 0; } .no-print { display: none; } }
+    .no-print { text-align: center; margin-bottom: 16px; }
+    .no-print button { padding: 8px 24px; font-size: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="no-print"><button onclick="window.print()">Print / Save as PDF</button></div>
+  <div class="sheet">
+    <div class="head">
+      <h1>{{ school.name }}</h1>
+      <p>{{ school.address }}</p>
+      {% if school.affiliation_number %}<p>Affiliation No: {{ school.affiliation_number }}</p>{% endif %}
+    </div>
+    <div class="title"><span>FEE RECEIPT</span></div>
+    <table>
+      <tr><td class="label">Receipt No.</td><td class="value">{{ txn.receipt_number }}</td></tr>
+      <tr><td class="label">Date</td><td class="value">{{ txn.paid_on }}</td></tr>
+      <tr><td class="label">Student Name</td><td class="value">{{ txn.student_name }}</td></tr>
+      <tr><td class="label">Admission No.</td><td class="value">{{ txn.admission_number }}</td></tr>
+      <tr><td class="label">Class</td><td class="value">{{ txn.class_name }}</td></tr>
+      <tr><td class="label">Fee Head</td><td class="value">{{ txn.fee_head }}{% if txn.term %} ({{ txn.term }}){% endif %}</td></tr>
+      <tr><td class="label">Payment Mode</td><td class="value">{{ txn.payment_mode | upper }}</td></tr>
+      {% if txn.razorpay_payment_id %}
+      <tr><td class="label">Payment Reference</td><td class="value">{{ txn.razorpay_payment_id }}</td></tr>
+      {% endif %}
+    </table>
+    <div class="amount-box">
+      <span>Amount Received</span>
+      <span>₹ {{ "%.2f" | format(txn.amount_paid) }}</span>
+    </div>
+    <div class="footer">
+      <div>Generated on {{ issue_date }}</div>
+      <div class="sig"><div class="line">Authorised Signatory</div></div>
+    </div>
+    <div class="note">This is a computer-generated receipt. Contact the school office for any correction.</div>
+  </div>
+</body>
+</html>
