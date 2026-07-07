@@ -118,6 +118,52 @@ async def get_attendance_history(
     return [AttendanceResponse.model_validate(a) for a in result.scalars().all()]
 
 
+@router.get("/export.csv")
+async def export_attendance_csv(
+    class_id: int | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN)),
+):
+    """Attendance records as CSV (SRS 6.6 reports)."""
+    import csv
+    import io
+
+    from fastapi.responses import StreamingResponse
+
+    from app.models.student import Student
+
+    query = (
+        select(Attendance, Student)
+        .join(Student, Student.id == Attendance.student_id)
+        .order_by(Attendance.date.desc(), Student.roll_number)
+    )
+    if class_id:
+        query = query.where(Student.class_id == class_id)
+    if date_from:
+        query = query.where(Attendance.date >= date_from)
+    if date_to:
+        query = query.where(Attendance.date <= date_to)
+    result = await db.execute(query)
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["date", "student", "admission_number", "class_id", "status", "period", "override_reason"])
+    for record, student in result.all():
+        writer.writerow(
+            [record.date.isoformat(), f"{student.first_name} {student.last_name}",
+             student.admission_number, student.class_id, record.status.value,
+             record.period or "", record.override_reason or ""]
+        )
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=attendance.csv"},
+    )
+
+
 @router.get("/my", response_model=dict)
 async def my_attendance(
     date_from: date | None = Query(None),

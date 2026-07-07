@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { authFetch, openHtmlDocument } from "../../lib/api";
+import { authFetch, downloadFile, openHtmlDocument } from "../../lib/api";
 import {
   getLookups,
   classNameOf,
@@ -327,7 +327,17 @@ function PaymentsTab({ lookups }: { lookups: Lookups }) {
 
   return (
     <>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="secondary"
+          onClick={() =>
+            downloadFile("/api/fees/transactions/export.csv", "fee-transactions.csv").catch(
+              (error) => toast(error instanceof Error ? error.message : "Failed", "error"),
+            )
+          }
+        >
+          Export CSV
+        </Button>
         <Button onClick={() => setPayOpen(true)}>+ Record Payment</Button>
       </div>
       <DataTable columns={columns} rows={transactions} keyFor={(t) => t.id} loading={loading} />
@@ -549,6 +559,18 @@ function DefaultersTab({ lookups }: { lookups: Lookups }) {
         <p className="ml-auto text-sm font-bold text-slate-600">
           Total outstanding: <span className="text-rose-600">{rupees(totalOutstanding)}</span>
         </p>
+        <Button
+          variant="secondary"
+          disabled={defaulters.length === 0}
+          onClick={() =>
+            downloadFile(
+              `/api/fees/defaulters/export.csv${classFilter !== "" ? `?class_id=${classFilter}` : ""}`,
+              "defaulters.csv",
+            ).catch((error) => toast(error instanceof Error ? error.message : "Failed", "error"))
+          }
+        >
+          Export CSV
+        </Button>
         <Button
           variant="secondary"
           disabled={defaulters.length === 0}

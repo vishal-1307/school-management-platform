@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { authFetch } from "../../lib/api";
+import { authFetch, downloadFile } from "../../lib/api";
 import { getLookups, classNameOf, currentYearOf, subjectNameOf, type Lookups } from "../../lib/lookups";
 import PortalShell from "../portal/PortalShell";
 import {
@@ -370,6 +370,16 @@ function ExamDetailModal({
             {!exam.results_published && (
               <Button onClick={() => action("publish")}>📣 Publish results</Button>
             )}
+            <Button
+              variant="secondary"
+              onClick={() =>
+                downloadFile(`/api/exams/${examId}/marks/export.csv`, `marks-${exam.name}.csv`).catch(
+                  (error) => toast(error instanceof Error ? error.message : "Failed", "error"),
+                )
+              }
+            >
+              Export Marks CSV
+            </Button>
             <Button variant="danger" className="ml-auto" onClick={removeExam}>
               Delete
             </Button>

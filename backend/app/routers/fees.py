@@ -6,7 +6,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -192,6 +192,68 @@ async def list_transactions(
     )
     result = await db.execute(query)
     return [FeeReceiptResponse.model_validate(t) for t in result.scalars().all()]
+
+
+@router.get("/transactions/export.csv")
+async def export_transactions_csv(
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> StreamingResponse:
+    """Fee collection report as CSV (SRS 6.5)."""
+    import csv
+    import io
+
+    query = select(FeeTransaction, Student).join(Student, Student.id == FeeTransaction.student_id)
+    if date_from:
+        query = query.where(FeeTransaction.paid_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        query = query.where(FeeTransaction.paid_at <= datetime.combine(date_to, datetime.max.time()))
+    result = await db.execute(query.order_by(FeeTransaction.paid_at.desc()))
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["receipt_number", "date", "student", "admission_number", "amount", "mode", "payment_ref"])
+    for txn, student in result.all():
+        writer.writerow(
+            [txn.receipt_number, txn.paid_at.isoformat() if txn.paid_at else "",
+             f"{student.first_name} {student.last_name}", student.admission_number,
+             txn.amount_paid, txn.payment_mode.value, txn.razorpay_payment_id or ""]
+        )
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=fee-transactions.csv"},
+    )
+
+
+@router.get("/defaulters/export.csv")
+async def export_defaulters_csv(
+    class_id: int | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> StreamingResponse:
+    """Defaulter list as CSV."""
+    import csv
+    import io
+
+    defaulters = await get_defaulters(class_id=class_id, academic_year_id=None, as_of_date=None, db=db, current_user=current_user)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["student", "admission_number", "class", "fee_head", "due", "paid", "balance", "due_date"])
+    for d in defaulters:
+        writer.writerow(
+            [d.student_name, d.admission_number, d.class_name, d.fee_head,
+             d.amount_due, d.amount_paid, d.balance, d.due_date.isoformat()]
+        )
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=defaulters.csv"},
+    )
 
 
 @router.get("/receipts/{txn_id}/html", response_class=HTMLResponse)

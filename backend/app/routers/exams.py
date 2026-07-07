@@ -345,6 +345,59 @@ async def publish_results(
     return MessageResponse(message=f"Results for '{exam.name}' published")
 
 
+@router.get("/{exam_id}/marks/export.csv")
+async def export_exam_marks_csv(
+    exam_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+):
+    """All marks for an exam as CSV — one row per student, one column per subject."""
+    import csv
+    import io
+
+    from fastapi.responses import StreamingResponse
+
+    exam_result = await db.execute(
+        select(Exam).options(
+            selectinload(Exam.exam_subjects).selectinload(ExamSubject.subject),
+            selectinload(Exam.exam_subjects).selectinload(ExamSubject.marks),
+        ).where(Exam.id == exam_id),
+    )
+    exam = exam_result.scalar_one_or_none()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    students = (
+        await db.execute(
+            select(Student)
+            .where(Student.class_id == exam.class_id, Student.is_active)
+            .order_by(Student.roll_number)
+        )
+    ).scalars().all()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    subject_names = [es.subject.name if es.subject else str(es.subject_id) for es in exam.exam_subjects]
+    writer.writerow(["roll_number", "student", "admission_number", *subject_names, "total"])
+    for student in students:
+        row = [student.roll_number or "", f"{student.first_name} {student.last_name}", student.admission_number]
+        total = 0.0
+        for es in exam.exam_subjects:
+            mark = next((m for m in es.marks if m.student_id == student.id), None)
+            value = mark.marks_obtained if mark and mark.marks_obtained is not None else ""
+            if isinstance(value, float):
+                total += value
+            row.append(value)
+        row.append(total)
+        writer.writerow(row)
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=marks-exam-{exam_id}.csv"},
+    )
+
+
 # ── Report Card ──────────────────────────────────────────────────────────
 
 

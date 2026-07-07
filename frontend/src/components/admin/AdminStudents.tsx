@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { authFetch, openHtmlDocument } from "../../lib/api";
+import { authFetch, downloadFile, openHtmlDocument } from "../../lib/api";
 import {
   getLookups,
   classNameOf,
@@ -259,6 +259,16 @@ function StudentsPage() {
           <button className="text-slate-500 font-bold hover:underline" onClick={() => openTC(s)}>
             TC
           </button>
+          <button
+            className="text-slate-500 font-bold hover:underline"
+            onClick={() =>
+              openHtmlDocument(`/api/students/${s.id}/bonafide`).catch((error) =>
+                toast(error instanceof Error ? error.message : "Failed", "error"),
+              )
+            }
+          >
+            Bonafide
+          </button>
           {s.is_active && (
             <button className="text-rose-600 font-bold hover:underline" onClick={() => deactivate(s)}>
               Deactivate
@@ -297,6 +307,17 @@ function StudentsPage() {
           ))}
         </Select>
         <div className="ml-auto flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() =>
+              downloadFile(
+                `/api/students/export.csv${classFilter !== "" ? `?class_id=${classFilter}` : ""}`,
+                "students.csv",
+              ).catch((error) => toast(error instanceof Error ? error.message : "Failed", "error"))
+            }
+          >
+            Export CSV
+          </Button>
           <Button variant="secondary" onClick={() => setPromoteOpen(true)}>
             Promote Class
           </Button>

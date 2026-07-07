@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -130,6 +130,42 @@ async def list_students(
         page=page,
         page_size=page_size,
         total_pages=total_pages,
+    )
+
+
+@router.get("/export.csv")
+async def export_students_csv(
+    class_id: int | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> StreamingResponse:
+    """Download the student register as CSV (opens in Excel)."""
+    import csv
+    import io
+
+    query = select(Student).options(selectinload(Student.parents)).where(Student.is_active)
+    if class_id:
+        query = query.where(Student.class_id == class_id)
+    result = await db.execute(query.order_by(Student.class_id, Student.roll_number))
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        ["admission_number", "first_name", "last_name", "dob", "gender", "class_id",
+         "section_id", "roll_number", "address", "parent_name", "parent_phone", "relation"]
+    )
+    for s in result.scalars().all():
+        parent = s.parents[0] if s.parents else None
+        writer.writerow(
+            [s.admission_number, s.first_name, s.last_name, s.dob.isoformat(), s.gender,
+             s.class_id, s.section_id, s.roll_number or "", s.address or "",
+             parent.name if parent else "", parent.phone if parent else "",
+             parent.relation if parent else ""]
+        )
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=students.csv"},
     )
 
 
@@ -331,4 +367,41 @@ async def generate_transfer_certificate(
     }
 
     html = await generate_tc(student_data, school_data)
+    return HTMLResponse(content=html)
+
+
+@router.get("/{student_id}/bonafide", response_class=HTMLResponse)
+async def generate_bonafide_certificate(
+    student_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> HTMLResponse:
+    """Printable Bonafide Certificate pre-filled from the student record (FR-6)."""
+    from app.services.certificates import generate_bonafide
+
+    result = await db.execute(
+        select(Student).options(selectinload(Student.parents)).where(Student.id == student_id),
+    )
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    school_result = await db.execute(select(School).limit(1))
+    school = school_result.scalar_one_or_none()
+    school_data = {
+        "name": school.name if school else "School Name",
+        "address": school.address if school else "",
+        "affiliation_number": school.affiliation_number if school else "",
+    }
+
+    father = next((p for p in student.parents if p.relation == "father"), None)
+    student_data = {
+        "name": f"{student.first_name} {student.last_name}",
+        "admission_number": student.admission_number,
+        "class_name": str(student.class_id),
+        "dob": student.dob.isoformat(),
+        "father_name": father.name if father else "N/A",
+    }
+
+    html = await generate_bonafide(student_data, school_data)
     return HTMLResponse(content=html)

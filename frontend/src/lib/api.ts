@@ -103,6 +103,23 @@ export async function authFetchText(path: string): Promise<string> {
   return response.text();
 }
 
+/** Download an authenticated file (CSV exports) via a blob link. */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const token = await tokenGetter();
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!response.ok) throw new Error(`Download failed (${response.status})`);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Open an authenticated HTML document (TC, receipt) in a print-ready tab. */
 export async function openHtmlDocument(path: string): Promise<void> {
   const html = await authFetchText(path);

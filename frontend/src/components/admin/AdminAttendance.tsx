@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { authFetch } from "../../lib/api";
+import { authFetch, downloadFile } from "../../lib/api";
 import { getLookups, sectionsForClass, type Lookups } from "../../lib/lookups";
 import PortalShell from "../portal/PortalShell";
 import { Button, Field, Modal, Select, Spinner, TextArea, TextInput, useToast } from "../portal/kit";
@@ -176,16 +176,29 @@ function StudentTab({ lookups }: { lookups: Lookups }) {
         <Field label="Date">
           <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        {students.length > 0 && (
-          <div className="ml-auto flex gap-2">
-            <Button variant="secondary" onClick={() => markAll("present")}>
-              All Present
-            </Button>
-            <Button onClick={save} disabled={busy}>
-              {busy ? "Saving…" : "Save Attendance"}
-            </Button>
-          </div>
-        )}
+        <div className="ml-auto flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() =>
+              downloadFile(
+                `/api/attendance/export.csv${classId !== "" ? `?class_id=${classId}` : ""}`,
+                "attendance.csv",
+              ).catch((error) => toast(error instanceof Error ? error.message : "Failed", "error"))
+            }
+          >
+            Export CSV
+          </Button>
+          {students.length > 0 && (
+            <>
+              <Button variant="secondary" onClick={() => markAll("present")}>
+                All Present
+              </Button>
+              <Button onClick={save} disabled={busy}>
+                {busy ? "Saving…" : "Save Attendance"}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {loading ? (
