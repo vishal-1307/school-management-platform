@@ -109,3 +109,15 @@ class BulkImportResponse(BaseModel):
     imported: int = 0
     skipped: int = 0
     errors: List[str] = Field(default_factory=list)
+
+
+class PromoteClassRequest(BaseModel):
+    """Promote every active student of one class into another (SRS 6.2)."""
+
+    from_class_id: int
+    to_class_id: int
+    to_section_id: int
+
+
+class PromoteClassResponse(BaseModel):
+    promoted: int

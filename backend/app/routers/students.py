@@ -14,12 +14,15 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import require_role
+from app.models.academic import Section
 from app.models.school import School
 from app.models.student import Parent, Student
 from app.models.user import User, UserRole
 from app.schemas.common import MessageResponse
 from app.schemas.student import (
     BulkImportResponse,
+    PromoteClassRequest,
+    PromoteClassResponse,
     StudentCreate,
     StudentListResponse,
     StudentResponse,
@@ -233,6 +236,45 @@ async def bulk_import_students(
 
     await db.flush()
     return BulkImportResponse(imported=imported, skipped=skipped, errors=errors)
+
+
+@router.post("/promote", response_model=PromoteClassResponse)
+async def promote_class(
+    payload: PromoteClassRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
+) -> PromoteClassResponse:
+    """Move every active student of a class to the next class in one action (SRS 6.2)."""
+    if payload.from_class_id == payload.to_class_id:
+        raise HTTPException(status_code=400, detail="Source and target class are the same")
+
+    section = await db.get(Section, payload.to_section_id)
+    if section is None or section.class_id != payload.to_class_id:
+        raise HTTPException(
+            status_code=400, detail="Target section does not belong to the target class"
+        )
+
+    result = await db.execute(
+        select(Student).where(
+            Student.class_id == payload.from_class_id, Student.is_active
+        )
+    )
+    students = result.scalars().all()
+    for student in students:
+        student.class_id = payload.to_class_id
+        student.section_id = payload.to_section_id
+
+    from app.routers.users import log_action
+
+    await log_action(
+        db,
+        current_user,
+        "students.promote_class",
+        "class",
+        payload.from_class_id,
+        {"to_class_id": payload.to_class_id, "count": len(students)},
+    )
+    return PromoteClassResponse(promoted=len(students))
 
 
 @router.get("/{student_id}/tc", response_class=HTMLResponse)

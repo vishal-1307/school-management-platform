@@ -91,3 +91,24 @@ export async function authFetch<T>(
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
+
+/** Authenticated request returning raw text (certificates, receipts). */
+export async function authFetchText(path: string): Promise<string> {
+  const token = await tokenGetter();
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok) throw new Error(`Request failed (${response.status})`);
+  return response.text();
+}
+
+/** Open an authenticated HTML document (TC, receipt) in a print-ready tab. */
+export async function openHtmlDocument(path: string): Promise<void> {
+  const html = await authFetchText(path);
+  const win = window.open("", "_blank");
+  if (!win) throw new Error("Popup blocked — allow popups for this site");
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
