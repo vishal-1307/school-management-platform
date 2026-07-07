@@ -1,0 +1,26 @@
+---
+export const prerender = false;
+
+import PortalLayout from "../layouts/PortalLayout.astro";
+import DevRolePicker from "../components/DevRolePicker.tsx";
+
+const hasClerk = Boolean(import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+let SignIn: any = null;
+if (hasClerk) {
+  ({ SignIn } = await import("@clerk/astro/components"));
+}
+---
+
+<PortalLayout title="Sign In — Knowledge Development Kindergarten Academy">
+  <section class="min-h-screen flex flex-col items-center justify-center px-4 py-16 space-y-8">
+    <a href="/" class="text-center space-y-1">
+      <p class="font-heading font-extrabold text-2xl text-slate-900">Knowledge Academy</p>
+      <p class="text-sm font-bold text-indigo-600">Portal Sign In</p>
+    </a>
+
+    {hasClerk ? <SignIn forceRedirectUrl="/portal" /> : <DevRolePicker client:load />}
+
+    <a href="/" class="text-xs font-bold text-slate-400 hover:text-slate-600">← Back to website</a>
+  </section>
+</PortalLayout>
