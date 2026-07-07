@@ -21,6 +21,9 @@ from app.routers import (
 )
 
 from contextlib import asynccontextmanager
+
+from sqlalchemy import text
+
 from app.database import Base, engine
 import app.models  # noqa: F401
 
@@ -29,6 +32,10 @@ async def lifespan(app: FastAPI):
     if settings.database_url.startswith("sqlite"):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+    if settings.seed_on_start:
+        from app.scripts.seed_prod import seed_production
+
+        await seed_production()
     yield
 
 app = FastAPI(
@@ -62,7 +69,16 @@ else:
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Verify backend and database connection status."""
-    return {"status": "ok", "message": "Backend is running smoothly"}
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception as exc:  # pragma: no cover - depends on infra state
+        db_status = f"error: {exc.__class__.__name__}: {exc}"
+    return {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "database": db_status,
+    }
 
 
 # Include routers

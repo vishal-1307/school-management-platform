@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: knowledge-academy-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Migrations run in the start command because the free tier has no
+    # pre-deploy hook; single instance, so there is no migration race.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      # Paste the *pooled* Neon connection string (postgresql://...).
+      # sslmode/channel_binding params are handled automatically.
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://school-management-platform-five.vercel.app","http://localhost:4321"]'
+      # Idempotent bootstrap seed (school profile, classes, subjects,
+      # pending super-admin). Safe to leave on.
+      - key: SEED_ON_START
+        value: "true"
+      # DEMO ONLY: allows "Bearer dev:<role>" logins while Clerk is not
+      # configured. REMOVE this the moment Clerk keys are added.
+      - key: DEV_AUTH
+        value: "true"
+      # Add later via dashboard when provisioned (all optional at boot):
+      # CLERK_SECRET_KEY, CLERK_JWKS_URL, CLERK_ISSUER, CLERK_WEBHOOK_SECRET,
+      # RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
+      # CLOUDINARY_URL, WHATSAPP_TOKEN, WHATSAPP_PHONE_ID

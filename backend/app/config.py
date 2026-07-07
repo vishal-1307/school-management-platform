@@ -4,9 +4,44 @@ Uses pydantic-settings so every secret is validated at startup and never
 hard-coded in source control.
 """
 
-from typing import List
+import json
+from typing import Annotated, List, Tuple
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+
+def normalize_database_url(url: str) -> Tuple[str, bool]:
+    """Normalize a Postgres URL for asyncpg and extract SSL intent.
+
+    Returns (url, ssl_required).
+
+    Handles the two things managed-Postgres providers (Neon, Render, Heroku)
+    put in their connection strings that break SQLAlchemy+asyncpg:
+    - ``postgres://`` / ``postgresql://`` schemes → ``postgresql+asyncpg://``
+    - ``?sslmode=require&channel_binding=require`` query params — asyncpg
+      does not accept either keyword, so they are stripped here and the SSL
+      requirement is applied via ``connect_args`` in ``app.database`` instead.
+    """
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    ssl_required = False
+    if url.startswith("postgresql+asyncpg://"):
+        parts = urlsplit(url)
+        kept_params = []
+        for key, value in parse_qsl(parts.query):
+            if key == "sslmode":
+                ssl_required = value != "disable"
+                continue
+            if key == "channel_binding":
+                continue
+            kept_params.append((key, value))
+        url = urlunsplit(parts._replace(query=urlencode(kept_params)))
+    return url, ssl_required
 
 
 class Settings(BaseSettings):
@@ -20,20 +55,27 @@ class Settings(BaseSettings):
 
     # ── Database ────────────────────────────────────────────────────────
     database_url: str = "sqlite+aiosqlite:///./school.db"
+    database_ssl_required: bool = False
 
     def __init__(self, **values):
         super().__init__(**values)
-        if self.database_url.startswith("postgres://"):
-            self.database_url = self.database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-        elif self.database_url.startswith("postgresql://") and not self.database_url.startswith("postgresql+asyncpg://"):
-            self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-
-
+        self.database_url, ssl_required = normalize_database_url(self.database_url)
+        if ssl_required:
+            self.database_ssl_required = True
 
     # ── Clerk Auth ──────────────────────────────────────────────────────
     clerk_secret_key: str = ""
     clerk_jwks_url: str = ""
     clerk_issuer: str = ""
+    clerk_webhook_secret: str = ""
+
+    # ── Dev / bootstrap switches ────────────────────────────────────────
+    # DEV_AUTH: accept "Bearer dev:<role>" tokens when no Clerk key is set.
+    # Demo-only — anyone who knows the URL can act as any role. Remove it
+    # the moment real Clerk keys are configured.
+    dev_auth: bool = False
+    # SEED_ON_START: run the idempotent production seed at boot.
+    seed_on_start: bool = False
 
     # ── Razorpay ────────────────────────────────────────────────────────
     razorpay_key_id: str = ""
@@ -47,8 +89,33 @@ class Settings(BaseSettings):
     whatsapp_token: str = ""
     whatsapp_phone_id: str = ""
 
+    # ── Frontend ────────────────────────────────────────────────────────
+    frontend_url: str = ""
+
     # ── CORS ────────────────────────────────────────────────────────────
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # Accepts either a JSON array or a plain comma-separated string, so a
+    # value like "https://site.vercel.app" set in a dashboard cannot crash
+    # Settings() at import time (pydantic-settings default requires JSON).
+    cors_origins: Annotated[List[str], NoDecode] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:4321",
+    ]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return []
+            if value.startswith("["):
+                try:
+                    return json.loads(value)
+                except json.JSONDecodeError:
+                    pass
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
 
 settings = Settings()

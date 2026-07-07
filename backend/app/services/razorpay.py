@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 from typing import Any, Dict
@@ -11,8 +12,18 @@ import razorpay
 from app.config import settings
 
 
+class RazorpayNotConfigured(RuntimeError):
+    """Raised when Razorpay credentials are not set in the environment."""
+
+
+def is_configured() -> bool:
+    return bool(settings.razorpay_key_id and settings.razorpay_key_secret)
+
+
 def _get_client() -> razorpay.Client:
     """Create a new Razorpay client from env credentials."""
+    if not is_configured():
+        raise RazorpayNotConfigured("RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not set")
     return razorpay.Client(auth=(settings.razorpay_key_id, settings.razorpay_key_secret))
 
 
@@ -26,6 +37,9 @@ async def create_order(amount_paise: int, receipt: str, notes: Dict[str, str] | 
 
     Returns:
         Razorpay order dict with ``id``, ``amount``, ``currency`` etc.
+
+    Raises:
+        RazorpayNotConfigured: If credentials are missing.
     """
     client = _get_client()
     order_data: Dict[str, Any] = {
@@ -35,7 +49,8 @@ async def create_order(amount_paise: int, receipt: str, notes: Dict[str, str] | 
     }
     if notes:
         order_data["notes"] = notes
-    return client.order.create(data=order_data)
+    # The Razorpay SDK is synchronous; run it off the event loop.
+    return await asyncio.to_thread(client.order.create, data=order_data)
 
 
 async def verify_payment_signature(

@@ -16,12 +16,17 @@ if settings.database_url.startswith("sqlite"):
         echo=False,
     )
 else:
+    # Pool sized for Neon free tier; use Neon's pooled connection string.
+    # SSL is passed here because asyncpg rejects sslmode= in the URL itself.
+    connect_args = {"ssl": True} if settings.database_ssl_required else {}
     engine = create_async_engine(
         settings.database_url,
         echo=False,
-        pool_size=20,
-        max_overflow=10,
+        pool_size=5,
+        max_overflow=5,
         pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args=connect_args,
     )
 
 
