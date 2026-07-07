@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 _BASE_URL = "https://graph.facebook.com/v18.0"
 
 
+def is_configured() -> bool:
+    return bool(settings.whatsapp_token and settings.whatsapp_phone_id)
+
+
 async def send_template_message(
     db: AsyncSession,
     to: str,
@@ -47,6 +51,14 @@ async def send_template_message(
     if components:
         payload["template"]["components"] = components
 
+    if not is_configured():
+        # Log what WOULD have been sent so the school sees the automation
+        # working before WhatsApp credentials are configured.
+        await _log_message(
+            db, to, "template", f"Template: {template_name}", template_name, DeliveryStatus.SKIPPED
+        )
+        return False
+
     success = await _send(payload)
     status = DeliveryStatus.SENT if success else DeliveryStatus.FAILED
     await _log_message(db, to, "template", f"Template: {template_name}", template_name, status)
@@ -74,6 +86,10 @@ async def send_text_message(
         "type": "text",
         "text": {"body": body},
     }
+    if not is_configured():
+        await _log_message(db, to, "text", body[:200], None, DeliveryStatus.SKIPPED)
+        return False
+
     success = await _send(payload)
     status = DeliveryStatus.SENT if success else DeliveryStatus.FAILED
     await _log_message(db, to, "text", body[:200], None, status)

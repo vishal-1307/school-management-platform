@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -324,6 +324,7 @@ async def unlock_exam(
 @router.post("/{exam_id}/publish", response_model=MessageResponse)
 async def publish_results(
     exam_id: int,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(*ADMIN_ROLES)),
 ) -> MessageResponse:
@@ -337,6 +338,10 @@ async def publish_results(
 
     exam.results_published = True
     await db.flush()
+
+    from app.services.automations import notify_results_published
+
+    background_tasks.add_task(notify_results_published, exam_id)
     return MessageResponse(message=f"Results for '{exam.name}' published")
 
 

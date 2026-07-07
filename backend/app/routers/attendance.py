@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,13 +30,15 @@ MARKER_ROLES = (UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN, UserRole.TEACHER)
 @router.post("/mark", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def mark_attendance(
     payload: AttendanceMarkRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(*MARKER_ROLES)),
 ) -> MessageResponse:
     """Bulk-mark attendance for a class/section on a given date.
 
     If a record already exists for a student+date+period, it is updated
-    rather than duplicated.
+    rather than duplicated. Absences trigger a WhatsApp alert to parents
+    when the automation is enabled (FR-9).
     """
     created = 0
     updated = 0
@@ -68,6 +70,13 @@ async def mark_attendance(
             created += 1
 
     await db.flush()
+
+    absent_ids = [e.student_id for e in payload.entries if e.status == "absent"]
+    if absent_ids:
+        from app.services.automations import send_absent_alerts
+
+        background_tasks.add_task(send_absent_alerts, absent_ids, payload.date)
+
     return MessageResponse(message=f"Attendance marked: {created} created, {updated} updated")
 
 

@@ -493,6 +493,24 @@ async def verify_razorpay_payment(
     return FeeReceiptResponse.model_validate(txn)
 
 
+@router.post("/reminders/dispatch", response_model=MessageResponse)
+async def dispatch_fee_reminders(
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> MessageResponse:
+    """Send WhatsApp due reminders to every defaulter's parents (SRS 6.5)."""
+    from app.services.automations import send_fee_reminders
+
+    sent = await send_fee_reminders()
+    if sent == -1:
+        raise HTTPException(
+            status_code=409,
+            detail="Fee reminders are switched off — enable them in Settings → Automation",
+        )
+    return MessageResponse(
+        message=f"Reminders queued to {sent} parents (see Communication Log for delivery status)"
+    )
+
+
 # ── Razorpay Webhook ────────────────────────────────────────────────────
 
 

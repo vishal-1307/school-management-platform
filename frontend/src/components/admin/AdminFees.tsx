@@ -549,6 +549,23 @@ function DefaultersTab({ lookups }: { lookups: Lookups }) {
         <p className="ml-auto text-sm font-bold text-slate-600">
           Total outstanding: <span className="text-rose-600">{rupees(totalOutstanding)}</span>
         </p>
+        <Button
+          variant="secondary"
+          disabled={defaulters.length === 0}
+          onClick={async () => {
+            if (!confirm("Send WhatsApp fee reminders to all defaulters' parents?")) return;
+            try {
+              const result = await authFetch<{ message: string }>("/api/fees/reminders/dispatch", {
+                method: "POST",
+              });
+              toast(result.message);
+            } catch (error) {
+              toast(error instanceof Error ? error.message : "Failed", "error");
+            }
+          }}
+        >
+          Send WhatsApp Reminders
+        </Button>
       </div>
       <DataTable
         columns={columns}

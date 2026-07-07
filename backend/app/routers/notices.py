@@ -81,6 +81,30 @@ async def list_notices(
     return [NoticeResponse.model_validate(n) for n in result.scalars().all()]
 
 
+@router.post("/{notice_id}/broadcast", response_model=MessageResponse)
+async def broadcast_notice_now(
+    notice_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> MessageResponse:
+    """Send this notice to all targeted parents on WhatsApp (FR-20/21)."""
+    notice = await db.get(Notice, notice_id)
+    if notice is None:
+        raise HTTPException(status_code=404, detail="Notice not found")
+
+    from app.services.automations import broadcast_notice
+
+    sent = await broadcast_notice(notice_id)
+    if sent == -1:
+        raise HTTPException(
+            status_code=409,
+            detail="Notice broadcasts are switched off — enable them in Settings → Automation",
+        )
+    return MessageResponse(
+        message=f"Broadcast queued to {sent} parents (see Communication Log for delivery status)"
+    )
+
+
 @router.get("/{notice_id}", response_model=NoticeResponse)
 async def get_notice(
     notice_id: int,
