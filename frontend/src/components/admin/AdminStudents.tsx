@@ -231,6 +231,30 @@ function StudentsPage() {
     }
   };
 
+  const createLogin = async (student: Student) => {
+    const loginId = prompt(
+      `Login ID for ${student.first_name} (parents use this to sign in too):`,
+      student.admission_number,
+    );
+    if (!loginId) return;
+    const password = prompt(`Password for ${loginId} (min 8 chars):`);
+    if (!password) return;
+    try {
+      await authFetch("/api/users/", {
+        method: "POST",
+        body: {
+          role: "student",
+          login_id: loginId.trim(),
+          password,
+          linked_student_id: student.id,
+        },
+      });
+      toast(`Login "${loginId.trim()}" created — share the ID and password with the family`);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Failed to create login", "error");
+    }
+  };
+
   if (!lookups) return <Spinner />;
 
   const columns: Column<Student>[] = [
@@ -268,6 +292,9 @@ function StudentsPage() {
             }
           >
             Bonafide
+          </button>
+          <button className="text-slate-500 font-bold hover:underline" onClick={() => createLogin(s)}>
+            Login
           </button>
           {s.is_active && (
             <button className="text-rose-600 font-bold hover:underline" onClick={() => deactivate(s)}>

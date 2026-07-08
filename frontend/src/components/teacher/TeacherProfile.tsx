@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { authFetch } from "../../lib/api";
 import PortalShell from "../portal/PortalShell";
+import ChangePasswordForm from "../portal/ChangePasswordForm";
 import { Button, ErrorNote, Field, Spinner, TextInput, useToast } from "../portal/kit";
 import { useTeacherRecord, type TeacherRecord } from "./useTeacher";
 
@@ -38,6 +39,7 @@ function ProfileView() {
   };
 
   return (
+    <>
     <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4 max-w-2xl">
       <div className="flex items-center gap-4">
         <img
@@ -75,16 +77,14 @@ function ProfileView() {
           />
         </Field>
       </div>
-      <p className="text-xs text-slate-400 font-semibold">
-        Password changes are handled from the sign-in screen ("Forgot password") once Clerk is
-        active, or by the school admin.
-      </p>
       <div className="flex justify-end">
         <Button onClick={save} disabled={busy}>
           {busy ? "Saving…" : "Save"}
         </Button>
       </div>
     </section>
+    <ChangePasswordForm />
+    </>
   );
 }
 

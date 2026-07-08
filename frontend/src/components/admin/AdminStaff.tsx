@@ -127,28 +127,24 @@ function StaffPage() {
   };
 
   const createLogin = async (member: Staff) => {
-    const password = prompt(
-      `Create a teacher login for ${member.first_name}. Enter a password (min 8 chars):`,
-    );
+    const suggestedId = `EMP-${String(member.id).padStart(3, "0")}`;
+    const loginId = prompt(`Login ID for ${member.first_name}:`, suggestedId);
+    if (!loginId) return;
+    const password = prompt(`Password for ${loginId} (min 8 chars):`);
     if (!password) return;
     try {
-      const user = await authFetch<{ provisioned: boolean }>("/api/users/", {
+      await authFetch("/api/users/", {
         method: "POST",
         body: {
           role: "teacher",
-          first_name: member.first_name,
-          last_name: member.last_name,
+          login_id: loginId.trim(),
           email: member.email,
           phone: member.phone,
           password,
           linked_staff_id: member.id,
         },
       });
-      toast(
-        user.provisioned
-          ? "Login created in Clerk — share the credentials"
-          : "Login saved (will sync to Clerk once keys are configured)",
-      );
+      toast(`Login "${loginId.trim()}" created — share the ID and password with ${member.first_name}`);
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed to create login", "error");
     }

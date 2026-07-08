@@ -1,16 +1,18 @@
 /**
  * Client-side auth state for the portals.
  *
- * The backend /api/auth/me is the authority on role and entity links; this
- * module caches it and wires the api client's token getter to Clerk when
- * present (falling back to the dev token in localStorage otherwise).
+ * The backend issues a 24h JWT on /api/auth/login. It lives in
+ * localStorage ("auth_token") for Authorization headers on API calls, and
+ * mirrored in the "session_token" cookie so the server-side middleware can
+ * role-gate portal routes. /api/auth/me remains the authority on role and
+ * entity links.
  */
 
-import { authFetch, setTokenGetter } from "./api";
+import { API_URL, authFetch } from "./api";
 
 export interface Me {
   id: number;
-  clerk_id: string;
+  login_id: string;
   email: string | null;
   phone: string | null;
   role: string;
@@ -20,33 +22,25 @@ export interface Me {
   is_active: boolean;
 }
 
-declare global {
-  interface Window {
-    Clerk?: {
-      session?: { getToken(): Promise<string | null> } | null;
-      signOut?: () => Promise<void>;
-    };
-  }
+const TOKEN_KEY = "auth_token";
+const COOKIE_NAME = "session_token";
+const DAY_SECONDS = 86400;
+
+/** Persist a freshly issued session token (login / password change). */
+export function storeSession(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+  const secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${COOKIE_NAME}=${token}; path=/; max-age=${DAY_SECONDS}; SameSite=Lax${secure}`;
 }
 
-let wired = false;
-
-/** Point authFetch at Clerk's session token when Clerk is on the page. */
-export function wireTokens(): void {
-  if (wired) return;
-  wired = true;
-  setTokenGetter(async () => {
-    if (typeof window !== "undefined" && window.Clerk?.session) {
-      return window.Clerk.session.getToken();
-    }
-    return typeof localStorage !== "undefined" ? localStorage.getItem("auth_token") : null;
-  });
+export function clearSession(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  document.cookie = `${COOKIE_NAME}=; path=/; Max-Age=0`;
 }
 
 let me: Me | null = null;
 
 export async function getMe(force = false): Promise<Me | null> {
-  wireTokens();
   if (me && !force) return me;
   try {
     me = await authFetch<Me>("/api/auth/me");
@@ -64,12 +58,12 @@ export function portalHomeFor(role: string): string {
 
 export async function signOut(): Promise<void> {
   me = null;
-  if (typeof localStorage !== "undefined") localStorage.removeItem("auth_token");
-  if (typeof document !== "undefined") {
-    document.cookie = "dev_role=; Max-Age=0; path=/";
+  try {
+    // Best-effort server-side revocation of every session for this account.
+    await fetch(`${API_URL}/api/auth/logout`, { method: "POST" });
+  } catch {
+    /* stateless logout is fine */
   }
-  if (typeof window !== "undefined") {
-    if (window.Clerk?.signOut) await window.Clerk.signOut();
-    window.location.href = "/login";
-  }
+  clearSession();
+  window.location.href = "/login";
 }

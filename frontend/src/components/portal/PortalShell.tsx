@@ -87,7 +87,7 @@ export default function PortalShell({
   useEffect(() => {
     getMe().then((user) => {
       if (!user) {
-        window.location.href = "/sign-in";
+        window.location.href = "/login";
         return;
       }
       if (!PORTAL_ROLES[portal].includes(user.role)) {
@@ -179,7 +179,7 @@ export default function PortalShell({
             <h1 className="text-lg font-extrabold font-heading text-slate-900 truncate">{title}</h1>
             <div className="ml-auto flex items-center gap-3">
               <span className="hidden sm:block text-xs font-bold text-slate-500">
-                {me.email || me.role}
+                {me.login_id}
               </span>
               <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold uppercase tracking-wider">
                 {me.role.replace("_", " ")}

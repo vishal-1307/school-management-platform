@@ -1,4 +1,5 @@
 import PortalShell from "../portal/PortalShell";
+import ChangePasswordForm from "../portal/ChangePasswordForm";
 import { ErrorNote, Spinner, formatDate } from "../portal/kit";
 import { useStudentRecord } from "./useStudent";
 import { useEffect, useState } from "react";
@@ -26,6 +27,7 @@ function ProfileView() {
   ];
 
   return (
+    <>
     <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5 max-w-2xl">
       <div className="flex items-center gap-4">
         <img
@@ -64,6 +66,8 @@ function ProfileView() {
         with the right details (SRS 8.8).
       </p>
     </section>
+    <ChangePasswordForm />
+    </>
   );
 }
 

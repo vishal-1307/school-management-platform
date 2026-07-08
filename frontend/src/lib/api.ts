@@ -50,7 +50,7 @@ export async function publicPost<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
-/** Session token supplier — wired to Clerk (or dev auth) by the portal shell. */
+/** Session token supplier — the JWT issued by /api/auth/login (localStorage). */
 export type TokenGetter = () => Promise<string | null> | string | null;
 
 let tokenGetter: TokenGetter = () =>

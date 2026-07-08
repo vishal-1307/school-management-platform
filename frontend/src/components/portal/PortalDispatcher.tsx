@@ -23,7 +23,7 @@ export default function PortalDispatcher() {
           Your sign-in worked, but no matching user exists in the school system yet. Ask the
           school admin to create your login, or try again.
         </p>
-        <a href="/sign-in" className="text-indigo-600 font-bold text-sm hover:underline">
+        <a href="/login" className="text-indigo-600 font-bold text-sm hover:underline">
           Back to sign in
         </a>
       </div>

@@ -15,14 +15,13 @@ import {
 
 interface PortalUser {
   id: number;
-  clerk_id: string;
+  login_id: string;
   email: string | null;
   phone: string | null;
   role: string;
   linked_staff_id: number | null;
   linked_student_id: number | null;
   is_active: boolean;
-  provisioned: boolean;
   created_at: string;
 }
 
@@ -82,18 +81,18 @@ function UsersPage() {
   };
 
   const resetPassword = async (user: PortalUser) => {
-    const password = prompt("New password (min 8 chars):");
+    const password = prompt(`New password for ${user.login_id} (min 8 chars):`);
     if (!password) return;
     try {
       await authFetch(`/api/users/${user.id}/reset-password`, { method: "POST", body: { password } });
-      toast("Password updated");
+      toast(`Password updated — share it with ${user.login_id} securely`);
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed", "error");
     }
   };
 
   const userColumns: Column<PortalUser>[] = [
-    { header: "ID", render: (u) => u.id },
+    { header: "Login ID", render: (u) => <span className="font-mono">{u.login_id}</span> },
     { header: "Email / Phone", render: (u) => u.email || u.phone || "—" },
     {
       header: "Role",
@@ -104,15 +103,6 @@ function UsersPage() {
       ),
     },
     {
-      header: "Clerk",
-      render: (u) =>
-        u.provisioned ? (
-          <span className="text-emerald-600 font-bold text-xs">Linked</span>
-        ) : (
-          <span className="text-amber-600 font-bold text-xs">Pending</span>
-        ),
-    },
-    {
       header: "Active",
       render: (u) => (u.is_active ? "Yes" : <span className="text-rose-600 font-bold">No</span>),
     },
@@ -121,11 +111,9 @@ function UsersPage() {
       header: "Actions",
       render: (u) => (
         <span className="flex gap-2">
-          {u.provisioned && (
-            <button className="text-indigo-600 font-bold hover:underline" onClick={() => resetPassword(u)}>
-              Reset PW
-            </button>
-          )}
+          <button className="text-indigo-600 font-bold hover:underline" onClick={() => resetPassword(u)}>
+            Reset PW
+          </button>
           {u.is_active ? (
             <button className="text-rose-600 font-bold hover:underline" onClick={() => deactivate(u)}>
               Deactivate
@@ -217,11 +205,9 @@ function CreateUserModal({
   const toast = useToast();
   const [form, setForm] = useState({
     role: "office_admin",
-    first_name: "",
-    last_name: "",
+    login_id: "",
     email: "",
     phone: "",
-    username: "",
     password: "",
     linked_staff_id: "",
     linked_student_id: "",
@@ -229,31 +215,38 @@ function CreateUserModal({
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
-    if (form.password && form.password.length < 8) {
+    if (!form.login_id.trim()) {
+      toast("Login ID is required", "error");
+      return;
+    }
+    if (form.password.length < 8) {
       toast("Password must be at least 8 characters", "error");
       return;
     }
     setBusy(true);
     try {
-      const user = await authFetch<PortalUser>("/api/users/", {
+      await authFetch<PortalUser>("/api/users/", {
         method: "POST",
         body: {
           role: form.role,
-          first_name: form.first_name,
-          last_name: form.last_name,
+          login_id: form.login_id.trim(),
+          password: form.password,
           email: form.email || null,
           phone: form.phone || null,
-          username: form.username || null,
-          password: form.password || null,
           linked_staff_id: form.linked_staff_id ? Number(form.linked_staff_id) : null,
           linked_student_id: form.linked_student_id ? Number(form.linked_student_id) : null,
         },
       });
-      toast(
-        user.provisioned
-          ? "Login created in Clerk"
-          : "Login saved — will sync to Clerk once keys are configured",
-      );
+      toast(`Login "${form.login_id.trim()}" created`);
+      setForm({
+        role: "office_admin",
+        login_id: "",
+        email: "",
+        phone: "",
+        password: "",
+        linked_staff_id: "",
+        linked_student_id: "",
+      });
       onDone();
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed", "error");
@@ -273,27 +266,26 @@ function CreateUserModal({
             <option value="super_admin">Super Admin</option>
           </Select>
         </Field>
-        <Field label="Username (students: admission no)">
-          <TextInput value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+        <Field label="Login ID" required>
+          <TextInput
+            placeholder="e.g. EMP-004 or ADM-00011"
+            value={form.login_id}
+            onChange={(e) => setForm({ ...form, login_id: e.target.value })}
+          />
         </Field>
-        <Field label="First name">
-          <TextInput value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
-        </Field>
-        <Field label="Last name">
-          <TextInput value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+        <Field label="Password" required>
+          <TextInput
+            type="text"
+            placeholder="Min 8 characters"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
         </Field>
         <Field label="Email">
           <TextInput value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </Field>
         <Field label="Phone">
           <TextInput value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        </Field>
-        <Field label="Password (min 8)">
-          <TextInput
-            type="text"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
         </Field>
         <Field label="Link to staff ID / student ID">
           <div className="flex gap-2">
@@ -312,7 +304,9 @@ function CreateUserModal({
       </div>
       <p className="text-xs text-slate-400 font-semibold">
         Teachers should be linked to their staff record and students to their student record — that's
-        what scopes their portal to their own data.
+        what scopes their portal to their own data. Login IDs are usually the admission number
+        (students) or an employee ID (staff) — prefer using the "Login" action from Student/Staff
+        Management, which pre-fills this for you.
       </p>
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onClose}>

@@ -1,21 +1,19 @@
 /**
  * Role-gates the portal routes (/admin, /teacher, /student).
  *
- * Clerk mode (PUBLIC_CLERK_PUBLISHABLE_KEY set): requires a signed-in Clerk
- * session; coarse role check uses the session claim `metadata.role` (see
- * docs/SETUP_CLERK.md for the session-token customization). The backend
- * remains the authority — every API call re-checks the role server-side.
- *
- * Dev mode (no Clerk key + PUBLIC_DEV_AUTH=true): gates on the `dev_role`
- * cookie set by the role picker. Demo only.
+ * Reads the "session_token" cookie set at login (see authStore.ts) and
+ * verifies it locally with the same HS256 SECRET_KEY the backend uses
+ * (set as a Vercel env var — copy the exact value from Render). This is a
+ * coarse, fast gate only: the backend independently re-verifies the token
+ * and re-checks the role on every API call, so a missing/misconfigured
+ * SECRET_KEY here can only make navigation less convenient, never grant
+ * access the API wouldn't also grant.
  *
  * Only runs for non-prerendered pages, which is exactly the portal set.
  */
 
 import { defineMiddleware } from "astro:middleware";
-
-const hasClerk = Boolean(import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY);
-const devAuth = import.meta.env.PUBLIC_DEV_AUTH === "true";
+import { jwtVerify } from "jose";
 
 const PROTECTED: { prefix: string; roles: string[] }[] = [
   { prefix: "/admin", roles: ["super_admin", "office_admin"] },
@@ -32,41 +30,41 @@ function requiredRoles(pathname: string): string[] | null {
   return null;
 }
 
-let clerkOnRequest: ReturnType<typeof defineMiddleware> | null = null;
-if (hasClerk) {
-  const { clerkMiddleware } = await import("@clerk/astro/server");
-  clerkOnRequest = clerkMiddleware((auth, context) => {
-    const roles = requiredRoles(new URL(context.request.url).pathname);
-    if (!roles) return;
+const secret = import.meta.env.SECRET_KEY
+  ? new TextEncoder().encode(import.meta.env.SECRET_KEY)
+  : null;
 
-    const { userId, sessionClaims } = auth();
-    if (!userId) {
-      return context.redirect("/sign-in");
+/** Decode the role claim from the session cookie, verifying the signature when possible. */
+async function roleFromToken(token: string): Promise<string | null> {
+  if (secret) {
+    try {
+      const { payload } = await jwtVerify(token, secret);
+      return (payload.role as string) ?? null;
+    } catch {
+      return null; // expired/invalid/tampered
     }
-    // Coarse gate only; undefined role claim falls through to the portal
-    // dispatcher + backend /api/auth/me for the authoritative check.
-    const metadata = (sessionClaims?.metadata ?? sessionClaims?.publicMetadata) as
-      | { role?: string }
-      | undefined;
-    const role = metadata?.role;
-    if (role && !roles.includes(role)) {
-      return context.redirect("/portal");
-    }
-  });
+  }
+  // SECRET_KEY not set on this deployment — fall back to an unverified
+  // decode for coarse routing only. The API remains the real gate.
+  try {
+    const [, payloadB64] = token.split(".");
+    const payload = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.role ?? null;
+  } catch {
+    return null;
+  }
 }
 
-const devOnRequest = defineMiddleware((context, next) => {
+export const onRequest = defineMiddleware(async (context, next) => {
   const roles = requiredRoles(new URL(context.request.url).pathname);
   if (!roles) return next();
 
-  if (!devAuth) {
-    // No auth system configured at all — keep portals closed.
-    return context.redirect("/login");
-  }
-  const role = context.cookies.get("dev_role")?.value;
-  if (!role) return context.redirect("/sign-in");
+  const token = context.cookies.get("session_token")?.value;
+  if (!token) return context.redirect("/login");
+
+  const role = await roleFromToken(token);
+  if (!role) return context.redirect("/login");
   if (!roles.includes(role)) return context.redirect("/portal");
+
   return next();
 });
-
-export const onRequest = hasClerk ? clerkOnRequest! : devOnRequest;

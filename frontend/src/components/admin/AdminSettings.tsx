@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { authFetch } from "../../lib/api";
 import { getLookups, classNameOf, type Lookups } from "../../lib/lookups";
 import PortalShell from "../portal/PortalShell";
+import ChangePasswordForm from "../portal/ChangePasswordForm";
 import { Button, Field, Select, Spinner, TextArea, TextInput, useToast } from "../portal/kit";
 
 interface SchoolProfile {
@@ -154,6 +155,8 @@ function SettingsPage() {
       </section>
 
       <AcademicSetup lookups={lookups} onChanged={load} />
+
+      <ChangePasswordForm />
     </>
   );
 }
