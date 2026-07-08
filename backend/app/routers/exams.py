@@ -22,6 +22,7 @@ from app.schemas.exam import (
     ReportCardResponse,
     SubjectMarkResponse,
 )
+from app.services.scoping import require_subject_class_scope
 
 router = APIRouter(prefix="/exams", tags=["Exams"])
 
@@ -135,6 +136,18 @@ async def list_marks(
     current_user: User = Depends(require_role(*TEACHER_ROLES)),
 ) -> List[dict]:
     """Marks already entered for an exam subject (for review/edit grids)."""
+    es_result = await db.execute(
+        select(ExamSubject).options(selectinload(ExamSubject.exam)).where(
+            ExamSubject.id == exam_subject_id
+        )
+    )
+    exam_subject = es_result.scalar_one_or_none()
+    if not exam_subject:
+        raise HTTPException(status_code=404, detail="Exam subject not found")
+    await require_subject_class_scope(
+        db, current_user, exam_subject.subject_id, exam_subject.exam.class_id
+    )
+
     result = await db.execute(
         select(Mark).where(Mark.exam_subject_id == exam_subject_id).order_by(Mark.student_id)
     )
@@ -229,6 +242,10 @@ async def enter_marks(
         raise HTTPException(status_code=404, detail="Exam subject not found")
     if exam_subject.exam.is_locked:
         raise HTTPException(status_code=409, detail="Exam is locked — marks cannot be edited")
+
+    await require_subject_class_scope(
+        db, current_user, exam_subject.subject_id, exam_subject.exam.class_id
+    )
 
     entered = 0
     for entry in payload.entries:

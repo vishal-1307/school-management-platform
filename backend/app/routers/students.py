@@ -95,11 +95,27 @@ async def list_students(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(*STAFF_ROLES)),
 ) -> StudentListResponse:
-    """List students with filters, search, and pagination."""
+    """List students with filters, search, and pagination.
+
+    Teachers are restricted to classes they are assigned to — otherwise
+    any teacher could browse the entire school's students, including
+    parent phone numbers and addresses.
+    """
     query = select(Student).options(selectinload(Student.parents))
     count_query = select(func.count(Student.id))
 
     filters = [Student.is_active == is_active]
+
+    if current_user.role == UserRole.TEACHER:
+        from app.services.scoping import teacher_assigned_class_ids
+
+        assigned = await teacher_assigned_class_ids(db, current_user.linked_staff_id or -1)
+        if class_id is not None and class_id not in assigned:
+            raise HTTPException(
+                status_code=403, detail="You are not assigned to this class"
+            )
+        filters.append(Student.class_id.in_(assigned or {-1}))
+
     if class_id:
         filters.append(Student.class_id == class_id)
     if section_id:
@@ -194,13 +210,21 @@ async def get_student(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(*STAFF_ROLES)),
 ) -> StudentResponse:
-    """Get a single student by ID."""
+    """Get a single student by ID (teachers: only their assigned classes)."""
     result = await db.execute(
         select(Student).options(selectinload(Student.parents)).where(Student.id == student_id),
     )
     student = result.scalar_one_or_none()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
+
+    if current_user.role == UserRole.TEACHER:
+        from app.services.scoping import teacher_assigned_class_ids
+
+        assigned = await teacher_assigned_class_ids(db, current_user.linked_staff_id or -1)
+        if student.class_id not in assigned:
+            raise HTTPException(status_code=403, detail="You are not assigned to this student's class")
+
     return StudentResponse.model_validate(student)
 
 

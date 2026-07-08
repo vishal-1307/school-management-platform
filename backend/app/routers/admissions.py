@@ -14,13 +14,19 @@ from app.models.admission import AdmissionEnquiry, EnquiryStatus
 from app.models.user import User, UserRole
 from app.schemas.admission import EnquiryResponse, EnquirySubmit, EnquiryUpdate
 from app.schemas.common import MessageResponse
+from app.services.ratelimit import enforce_public_form_limit
 
 router = APIRouter(prefix="/admissions", tags=["Admissions"])
 
 ADMIN_ROLES = (UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN)
 
 
-@router.post("/enquiry", response_model=EnquiryResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/enquiry",
+    response_model=EnquiryResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(enforce_public_form_limit)],
+)
 async def submit_enquiry(
     payload: EnquirySubmit,
     db: AsyncSession = Depends(get_db),
@@ -28,6 +34,7 @@ async def submit_enquiry(
     """Submit an admission enquiry (public, no auth required).
 
     This endpoint is exposed on the school website for prospective parents.
+    Rate-limited per IP to curb spam.
     """
     enquiry = AdmissionEnquiry(**payload.model_dump())
     db.add(enquiry)

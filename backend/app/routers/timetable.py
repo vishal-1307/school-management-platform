@@ -90,7 +90,21 @@ async def get_weekly_timetable(
         UserRole.STUDENT, UserRole.PARENT,
     )),
 ) -> WeeklyTimetableResponse:
-    """Retrieve the full weekly timetable for a class-section."""
+    """Retrieve the full weekly timetable for a class-section.
+
+    Students/parents may only view their own class/section's timetable.
+    """
+    if current_user.role in (UserRole.STUDENT, UserRole.PARENT):
+        from app.models.student import Student
+
+        student = (
+            await db.get(Student, current_user.linked_student_id)
+            if current_user.linked_student_id
+            else None
+        )
+        if student is None or student.class_id != class_id or student.section_id != section_id:
+            raise HTTPException(status_code=403, detail="Not your class's timetable")
+
     result = await db.execute(
         select(TimetableSlot).where(
             and_(

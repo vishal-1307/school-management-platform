@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.auth import require_role
 from app.models.attendance import Attendance, AttendanceStatus, StaffAttendance
+from app.models.student import Student
 from app.models.user import User, UserRole
 from app.schemas.attendance import (
     AttendanceMarkRequest,
@@ -21,6 +22,7 @@ from app.schemas.attendance import (
     StaffAttendanceResponse,
 )
 from app.schemas.common import MessageResponse
+from app.services.scoping import require_class_section_scope
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
 
@@ -40,6 +42,26 @@ async def mark_attendance(
     rather than duplicated. Absences trigger a WhatsApp alert to parents
     when the automation is enabled (FR-9).
     """
+    await require_class_section_scope(db, current_user, payload.class_id, payload.section_id)
+
+    # Every student in the request must actually belong to this class/section
+    # (prevents marking attendance for students outside the declared scope).
+    student_ids = [e.student_id for e in payload.entries]
+    valid_result = await db.execute(
+        select(Student.id).where(
+            Student.id.in_(student_ids),
+            Student.class_id == payload.class_id,
+            Student.section_id == payload.section_id,
+        )
+    )
+    valid_ids = {row[0] for row in valid_result.all()}
+    invalid_ids = set(student_ids) - valid_ids
+    if invalid_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Student(s) {sorted(invalid_ids)} are not in class_id={payload.class_id}/section_id={payload.section_id}",
+        )
+
     created = 0
     updated = 0
 
@@ -91,8 +113,18 @@ async def get_attendance_history(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(*MARKER_ROLES)),
 ) -> List[AttendanceResponse]:
-    """Retrieve attendance records with filters."""
-    from app.models.student import Student
+    """Retrieve attendance records with filters.
+
+    Teachers must scope to a class+section they are assigned to; admins may
+    query freely.
+    """
+    if current_user.role == UserRole.TEACHER:
+        if class_id is None or section_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="class_id and section_id are required for teacher queries",
+            )
+        await require_class_section_scope(db, current_user, class_id, section_id)
 
     query = select(Attendance).join(Student, Student.id == Attendance.student_id)
     filters = []

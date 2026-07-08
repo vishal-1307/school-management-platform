@@ -1,7 +1,11 @@
 """FastAPI main application entrypoint."""
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.routers import (
@@ -52,38 +56,41 @@ app = FastAPI(
 )
 
 
-# CORS configuration
-if settings.cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# CORS configuration. Never falls back to "*" — an empty CORS_ORIGINS
+# (misconfiguration) restricts to localhost dev origins rather than
+# opening up to every origin while allow_credentials=True is set (that
+# combination lets any website read authenticated responses).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins or [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:4321",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Verify backend and database connection status."""
+    """Verify backend and database connection status.
+
+    Failure detail is logged server-side only — the response never
+    exposes driver/connection internals to an unauthenticated caller.
+    """
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        db_status = "ok"
-    except Exception as exc:  # pragma: no cover - depends on infra state
-        db_status = f"error: {exc.__class__.__name__}: {exc}"
+        db_ok = True
+    except Exception:  # pragma: no cover - depends on infra state
+        logger.exception("Health check: database connection failed")
+        db_ok = False
     return {
-        "status": "ok" if db_status == "ok" else "degraded",
-        "database": db_status,
+        "status": "ok" if db_ok else "degraded",
+        "database": "ok" if db_ok else "error",
     }
 
 

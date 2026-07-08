@@ -587,9 +587,9 @@ async def razorpay_webhook(
     corresponding transaction record.
     """
     signature = request.headers.get("X-Razorpay-Signature", "")
-    payload = await request.json()
+    raw_body = await request.body()
 
-    event = await razorpay_service.process_webhook(payload, signature)
+    event = await razorpay_service.process_webhook(raw_body, signature)
     if event is None:
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 

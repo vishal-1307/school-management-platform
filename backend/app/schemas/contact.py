@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class ContactSubmit(BaseModel):
     name: str = Field(..., max_length=200)
-    email: str | None = None
+    email: str | None = Field(None, max_length=255)
     phone: str | None = Field(None, max_length=20)
     message: str = Field(..., max_length=5000)
 

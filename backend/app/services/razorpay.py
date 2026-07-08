@@ -72,11 +72,15 @@ async def verify_payment_signature(
     return hmac.compare_digest(expected, signature)
 
 
-async def process_webhook(payload: Dict[str, Any], signature: str) -> Dict[str, Any] | None:
-    """Validate and extract a Razorpay webhook event.
+async def process_webhook(raw_body: bytes, signature: str) -> Dict[str, Any] | None:
+    """Validate a Razorpay webhook and return the parsed event.
 
     Args:
-        payload: Raw JSON body from the webhook request.
+        raw_body: The exact request body bytes as received (the HMAC must
+            be computed over these, not a re-serialization — re-dumping
+            the parsed JSON can differ from Razorpay's byte-for-byte
+            payload in key order, unicode escaping, or whitespace, which
+            would make correct payloads fail verification).
         signature: ``X-Razorpay-Signature`` header value.
 
     Returns:
@@ -84,14 +88,13 @@ async def process_webhook(payload: Dict[str, Any], signature: str) -> Dict[str, 
     """
     import json
 
-    body = json.dumps(payload, separators=(",", ":"))
     expected = hmac.new(
         settings.razorpay_webhook_secret.encode(),
-        body.encode(),
+        raw_body,
         hashlib.sha256,
     ).hexdigest()
 
     if not hmac.compare_digest(expected, signature):
         return None
 
-    return payload
+    return json.loads(raw_body)

@@ -15,10 +15,10 @@ class EnquirySubmit(BaseModel):
     class_applying: str = Field(..., max_length=30)
     parent_name: str = Field(..., max_length=200)
     phone: str = Field(..., max_length=20)
-    email: str | None = None
-    address: str | None = None
-    source: str | None = None
-    message: str | None = None
+    email: str | None = Field(None, max_length=255)
+    address: str | None = Field(None, max_length=500)
+    source: str | None = Field(None, max_length=100)
+    message: str | None = Field(None, max_length=2000)
 
 
 class EnquiryUpdate(BaseModel):

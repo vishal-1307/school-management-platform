@@ -84,6 +84,61 @@ class TestSessionTokens:
             decode_token(token)
 
 
+class TestRazorpayWebhookHMAC:
+    """Finding #4: signature must be over the raw body bytes, not a re-dump."""
+
+    @pytest.mark.asyncio
+    async def test_valid_signature_over_raw_bytes(self, monkeypatch):
+        import hashlib
+        import hmac
+
+        from app.config import settings
+        from app.services.razorpay import process_webhook
+
+        monkeypatch.setattr(settings, "razorpay_webhook_secret", "whsec_test")
+        # Deliberately non-canonical key order + spacing — a re-serialization
+        # via json.dumps(json.loads(body)) would NOT byte-match this.
+        raw_body = b'{"event": "payment.captured",   "payload": {}}'
+        signature = hmac.new(b"whsec_test", raw_body, hashlib.sha256).hexdigest()
+
+        event = await process_webhook(raw_body, signature)
+        assert event == {"event": "payment.captured", "payload": {}}
+
+    @pytest.mark.asyncio
+    async def test_tampered_body_rejected(self, monkeypatch):
+        import hashlib
+        import hmac
+
+        from app.config import settings
+        from app.services.razorpay import process_webhook
+
+        monkeypatch.setattr(settings, "razorpay_webhook_secret", "whsec_test")
+        raw_body = b'{"event": "payment.captured"}'
+        signature = hmac.new(b"whsec_test", raw_body, hashlib.sha256).hexdigest()
+
+        tampered = b'{"event": "payment.refunded"}'
+        assert await process_webhook(tampered, signature) is None
+
+
+@pytest.mark.asyncio
+async def test_public_form_rate_limited(client):
+    """Finding #7: public POSTs are capped per IP."""
+    from app.services.ratelimit import PUBLIC_FORM_LIMITER
+
+    PUBLIC_FORM_LIMITER._events.clear()
+    for _ in range(5):
+        response = await client.post(
+            "/api/public/contact", json={"name": "Spammer", "message": "hi"}
+        )
+        assert response.status_code == 201
+
+    sixth = await client.post(
+        "/api/public/contact", json={"name": "Spammer", "message": "hi"}
+    )
+    assert sixth.status_code == 429
+    PUBLIC_FORM_LIMITER._events.clear()
+
+
 @pytest.mark.asyncio
 async def test_login_lockout_after_five_failures(client):
     """Finding #1: per-ID lockout kicks in after 5 failed attempts."""

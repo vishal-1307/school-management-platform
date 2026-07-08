@@ -23,6 +23,7 @@ from app.models.school import School
 from app.models.staff import Staff
 from app.schemas.common import MessageResponse
 from app.schemas.contact import ContactSubmit
+from app.services.ratelimit import enforce_public_form_limit
 
 router = APIRouter(prefix="/public", tags=["Public Website"])
 
@@ -110,11 +111,16 @@ async def public_school(db: AsyncSession = Depends(get_db)) -> PublicSchool | No
     return PublicSchool.model_validate(school) if school else None
 
 
-@router.post("/contact", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/contact",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(enforce_public_form_limit)],
+)
 async def submit_contact(
     payload: ContactSubmit,
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
-    """Public Contact Us form → admin inbox (SRS 4.2.11)."""
+    """Public Contact Us form → admin inbox (SRS 4.2.11). Rate-limited per IP."""
     db.add(ContactMessage(**payload.model_dump()))
     return MessageResponse(message="Thank you — the school office will get back to you soon.")
