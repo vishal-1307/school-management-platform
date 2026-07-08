@@ -10,8 +10,7 @@ from pathlib import Path
 
 TEST_DB = Path(__file__).parent / "test_school.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB}"
-os.environ["DEV_AUTH"] = "true"
-os.environ["CLERK_SECRET_KEY"] = ""
+os.environ["SECRET_KEY"] = "test-secret-key-for-ci-only"
 os.environ["SEED_ON_START"] = "false"
 
 import pytest
@@ -86,17 +85,27 @@ async def prepare_database():
             Parent(name="Pat Parent", phone="9000000002", relation="father", student_id=student.id)
         )
 
+        from app.services.security import hash_password
+
+        password_hash = hash_password(TEST_PASSWORD)
         session.add_all(
             [
-                User(clerk_id="dev-admin", role=UserRole.SUPER_ADMIN, is_active=True),
                 User(
-                    clerk_id="dev-teacher",
+                    login_id="admin",
+                    password_hash=password_hash,
+                    role=UserRole.SUPER_ADMIN,
+                    is_active=True,
+                ),
+                User(
+                    login_id="EMP-001",
+                    password_hash=password_hash,
                     role=UserRole.TEACHER,
                     linked_staff_id=staff.id,
                     is_active=True,
                 ),
                 User(
-                    clerk_id="dev-student",
+                    login_id="ADM-00001",
+                    password_hash=password_hash,
                     role=UserRole.STUDENT,
                     linked_student_id=student.id,
                     is_active=True,
@@ -119,9 +128,20 @@ async def client():
         yield ac
 
 
-ADMIN = {"Authorization": "Bearer dev:super_admin"}
-TEACHER = {"Authorization": "Bearer dev:teacher"}
-STUDENT = {"Authorization": "Bearer dev:student"}
+TEST_PASSWORD = "Password@Test1"
+
+
+def _bearer(user_id: int, role: str) -> dict:
+    from app.services.security import create_access_token
+
+    token, _ = create_access_token(user_id, role, token_version=0)
+    return {"Authorization": f"Bearer {token}"}
+
+
+# User ids are deterministic on the fresh test DB (creation order above).
+ADMIN = _bearer(1, "super_admin")
+TEACHER = _bearer(2, "teacher")
+STUDENT = _bearer(3, "student")
 
 
 @pytest.fixture

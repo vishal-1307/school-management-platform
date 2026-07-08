@@ -87,21 +87,21 @@ async def seed_production() -> None:
                 session.add(Subject(name=name, code=code))
                 created.append(f"subject {name}")
 
+        from app.services.security import hash_password
+
         admin = (
-            await session.execute(
-                select(User).where(User.role == UserRole.SUPER_ADMIN)
-            )
+            await session.execute(select(User).where(User.login_id == "admin"))
         ).scalars().first()
         if admin is None:
             session.add(
                 User(
-                    clerk_id="pending:super-admin",
-                    email="",
+                    login_id="admin",
+                    password_hash=hash_password("Admin@2026"),
                     role=UserRole.SUPER_ADMIN,
                     is_active=True,
                 )
             )
-            created.append("super_admin user (pending Clerk link)")
+            created.append("super_admin user 'admin'")
 
         await session.commit()
         if created:

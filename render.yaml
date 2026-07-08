@@ -16,17 +16,17 @@ services:
       # sslmode/channel_binding params are handled automatically.
       - key: DATABASE_URL
         sync: false
+      # Signs session tokens. Auto-generated; copy the SAME value into
+      # Vercel's SECRET_KEY env var so the frontend middleware can verify
+      # sessions too.
+      - key: SECRET_KEY
+        generateValue: true
       - key: CORS_ORIGINS
-        value: '["https://school-management-platform-five.vercel.app","http://localhost:4321"]'
-      # Idempotent bootstrap seed (school profile, classes, subjects,
-      # pending super-admin). Safe to leave on.
+        value: '["https://school-management-platform-five.vercel.app"]'
+      # Idempotent demo seed (accounts + walkthrough data — see
+      # DEMO_CREDENTIALS.md). Set to false after wiping demo data.
       - key: SEED_ON_START
         value: "true"
-      # DEMO ONLY: allows "Bearer dev:<role>" logins while Clerk is not
-      # configured. REMOVE this the moment Clerk keys are added.
-      - key: DEV_AUTH
-        value: "true"
       # Add later via dashboard when provisioned (all optional at boot):
-      # CLERK_SECRET_KEY, CLERK_JWKS_URL, CLERK_ISSUER, CLERK_WEBHOOK_SECRET,
       # RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
       # CLOUDINARY_URL, WHATSAPP_TOKEN, WHATSAPP_PHONE_ID

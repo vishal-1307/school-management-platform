@@ -63,18 +63,16 @@ class Settings(BaseSettings):
         if ssl_required:
             self.database_ssl_required = True
 
-    # ── Clerk Auth ──────────────────────────────────────────────────────
-    clerk_secret_key: str = ""
-    clerk_jwks_url: str = ""
-    clerk_issuer: str = ""
-    clerk_webhook_secret: str = ""
+    # ── Auth (institutional ID + password) ─────────────────────────────
+    # SECRET_KEY signs the session JWTs. Must be a long random value in
+    # production (render.yaml generates one); auth returns 503 if unset.
+    secret_key: str = ""
+    # Session lifetime; tokens also die early when the user's token_version
+    # is bumped (password change/reset, deactivation, logout-everywhere).
+    access_token_hours: int = 24
 
-    # ── Dev / bootstrap switches ────────────────────────────────────────
-    # DEV_AUTH: accept "Bearer dev:<role>" tokens when no Clerk key is set.
-    # Demo-only — anyone who knows the URL can act as any role. Remove it
-    # the moment real Clerk keys are configured.
-    dev_auth: bool = False
-    # SEED_ON_START: run the idempotent production seed at boot.
+    # ── Bootstrap switches ──────────────────────────────────────────────
+    # SEED_ON_START: run the idempotent demo seed at boot.
     seed_on_start: bool = False
 
     # ── Razorpay ────────────────────────────────────────────────────────

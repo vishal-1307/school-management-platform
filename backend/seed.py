@@ -163,16 +163,20 @@ async def seed():
         )
         session.add_all([parent1, parent2])
 
-        print("Seeding users for authentication testing...")
+        print("Seeding login users (see DEMO_CREDENTIALS.md)...")
+        from app.services.security import hash_password
+
         user_admin = User(
-            clerk_id="user_admin_123",
+            login_id="admin",
+            password_hash=hash_password("Admin@2026"),
             email="admin@knowledgeacademy.edu.in",
             phone="9876543210",
             role=UserRole.SUPER_ADMIN,
             is_active=True
         )
         user_teacher = User(
-            clerk_id="user_teacher_123",
+            login_id="EMP-001",
+            password_hash=hash_password("Teach@2026"),
             email="sunita@knowledgeacademy.edu.in",
             phone="9876543211",
             role=UserRole.TEACHER,
@@ -180,7 +184,8 @@ async def seed():
             is_active=True
         )
         user_student = User(
-            clerk_id="user_student_123",
+            login_id="ADM-00001",
+            password_hash=hash_password("Study@2026"),
             email="aarav@example.com",
             phone="9876543220",
             role=UserRole.STUDENT,

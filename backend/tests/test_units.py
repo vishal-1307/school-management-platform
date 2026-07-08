@@ -1,8 +1,4 @@
-"""Unit tests: URL normalization, CORS parsing, webhook HMAC, JWKS RS256."""
-
-import base64
-import hashlib
-import hmac
+"""Unit tests: URL normalization, password hashing, session tokens, lockout."""
 
 import pytest
 
@@ -39,80 +35,118 @@ class TestNormalizeDatabaseUrl:
         assert ssl is False
 
 
-class TestClerkWebhookVerify:
-    def _make(self, secret_bytes: bytes, body: bytes, msg_id="msg_1", ts="1720000000"):
-        signed = f"{msg_id}.{ts}.".encode() + body
-        return base64.b64encode(hmac.new(secret_bytes, signed, hashlib.sha256).digest()).decode()
+class TestPasswordHashing:
+    def test_roundtrip(self):
+        from app.services.security import hash_password, verify_password
 
-    def test_valid_signature(self, monkeypatch):
+        hashed = hash_password("S3cret!pass")
+        assert hashed != "S3cret!pass"
+        assert hashed.startswith("$2")  # bcrypt marker, salted per-hash
+        assert verify_password("S3cret!pass", hashed) is True
+        assert verify_password("wrong", hashed) is False
+
+    def test_unusable_sentinel_never_matches(self):
+        from app.services.security import UNUSABLE_HASH, verify_password
+
+        assert verify_password("anything", UNUSABLE_HASH) is False
+
+    def test_hashes_are_salted_uniquely(self):
+        from app.services.security import hash_password
+
+        assert hash_password("same") != hash_password("same")
+
+
+class TestSessionTokens:
+    def test_roundtrip_claims(self):
+        from app.services.security import create_access_token, decode_token
+
+        token, expires_at = create_access_token(42, "teacher", token_version=3)
+        payload = decode_token(token)
+        assert payload["sub"] == "42"
+        assert payload["role"] == "teacher"
+        assert payload["tv"] == 3
+        assert expires_at is not None
+
+    def test_tampered_token_rejected(self):
+        from app.services.security import JWTError, create_access_token, decode_token
+
+        token, _ = create_access_token(1, "student", token_version=0)
+        with pytest.raises(JWTError):
+            decode_token(token[:-4] + "AAAA")
+
+    def test_wrong_key_rejected(self, monkeypatch):
         from app.config import settings
-        from app.services.clerk import verify_webhook
+        from app.services.security import JWTError, create_access_token, decode_token
 
-        secret = b"super-secret"
-        monkeypatch.setattr(
-            settings, "clerk_webhook_secret", "whsec_" + base64.b64encode(secret).decode()
-        )
-        body = b'{"type":"user.updated"}'
-        signature = self._make(secret, body)
-        headers = {"svix-id": "msg_1", "svix-timestamp": "1720000000", "svix-signature": f"v1,{signature}"}
-        assert verify_webhook(headers, body) is True
-
-    def test_invalid_signature(self, monkeypatch):
-        from app.config import settings
-        from app.services.clerk import verify_webhook
-
-        monkeypatch.setattr(
-            settings, "clerk_webhook_secret", "whsec_" + base64.b64encode(b"k").decode()
-        )
-        headers = {"svix-id": "m", "svix-timestamp": "1", "svix-signature": "v1,AAAA"}
-        assert verify_webhook(headers, b"{}") is False
-
-    def test_unconfigured(self, monkeypatch):
-        from app.config import settings
-        from app.services.clerk import verify_webhook
-
-        monkeypatch.setattr(settings, "clerk_webhook_secret", "")
-        assert verify_webhook({}, b"{}") is False
+        token, _ = create_access_token(1, "student", token_version=0)
+        monkeypatch.setattr(settings, "secret_key", "a-different-secret")
+        with pytest.raises(JWTError):
+            decode_token(token)
 
 
 @pytest.mark.asyncio
-async def test_jwks_rs256_verification(monkeypatch, client):
-    """Full RS256 path: local keypair, patched JWKS fetch, real user lookup."""
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric import rsa
-    from jose import jwt
-    from jose.backends.cryptography_backend import CryptographyRSAKey
-    from jose.constants import ALGORITHMS
+async def test_login_lockout_after_five_failures(client):
+    """Finding #1: per-ID lockout kicks in after 5 failed attempts."""
+    from app.services.ratelimit import LOGIN_ID_FAILURES, LOGIN_IP_ATTEMPTS
 
-    import app.middleware.auth as auth_module
-    from app.config import settings
+    login_id = "EMP-001"  # real user, wrong password every time
+    LOGIN_ID_FAILURES.clear(login_id.lower())
 
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    private_pem = private_key.private_bytes(
-        serialization.Encoding.PEM,
-        serialization.PrivateFormat.PKCS8,
-        serialization.NoEncryption(),
-    ).decode()
+    for _ in range(5):
+        response = await client.post(
+            "/api/auth/login", json={"login_id": login_id, "password": "wrong"}
+        )
+        assert response.status_code == 401
 
-    public_jwk = CryptographyRSAKey(private_key.public_key(), ALGORITHMS.RS256).to_dict()
-    public_jwk["kid"] = "test-key"
+    # Sixth attempt is refused even with the CORRECT password
+    from tests.conftest import TEST_PASSWORD
 
-    async def fake_fetch(force: bool = False):
-        return [public_jwk]
-
-    monkeypatch.setattr(auth_module, "_fetch_jwks", fake_fetch)
-    # Real-Clerk path requires dev-auth to be off for JWT branch coverage
-    monkeypatch.setattr(settings, "clerk_secret_key", "sk_test_dummy")
-    monkeypatch.setattr(settings, "clerk_issuer", "")
-
-    token = jwt.encode(
-        {"sub": "dev-admin"}, private_pem, algorithm="RS256", headers={"kid": "test-key"}
+    response = await client.post(
+        "/api/auth/login", json={"login_id": login_id, "password": TEST_PASSWORD}
     )
-    response = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
-    assert response.json()["role"] == "super_admin"
+    assert response.status_code == 429
 
-    # Tampered token fails
-    bad = token[:-4] + "AAAA"
-    response = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {bad}"})
-    assert response.status_code == 401
+    # Cleanup so other tests can use this account
+    LOGIN_ID_FAILURES.clear(login_id.lower())
+    LOGIN_IP_ATTEMPTS._events.clear()
+
+
+@pytest.mark.asyncio
+async def test_password_change_revokes_old_token(client):
+    """Finding #6: token_version bump kills outstanding sessions."""
+    from tests.conftest import TEST_PASSWORD
+
+    login = await client.post(
+        "/api/auth/login", json={"login_id": "ADM-00001", "password": TEST_PASSWORD}
+    )
+    assert login.status_code == 200
+    old_token = login.json()["token"]
+    old_headers = {"Authorization": f"Bearer {old_token}"}
+
+    assert (await client.get("/api/auth/me", headers=old_headers)).status_code == 200
+
+    change = await client.post(
+        "/api/auth/change-password",
+        headers=old_headers,
+        json={"current_password": TEST_PASSWORD, "new_password": "NewPass@123"},
+    )
+    assert change.status_code == 200
+    new_token = change.json()["token"]
+
+    # Old token dead, new token alive
+    assert (await client.get("/api/auth/me", headers=old_headers)).status_code == 401
+    assert (
+        await client.get("/api/auth/me", headers={"Authorization": f"Bearer {new_token}"})
+    ).status_code == 200
+
+    # Restore original password AND token_version so the module-level
+    # minted STUDENT header (tv=0) keeps working in other tests.
+    from app.database import async_session_factory
+    from app.models.user import User
+    from app.services.security import hash_password
+
+    async with async_session_factory() as session:
+        user = await session.get(User, 3)
+        user.password_hash = hash_password(TEST_PASSWORD)
+        user.token_version = 0
+        await session.commit()

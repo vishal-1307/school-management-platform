@@ -4,23 +4,21 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, Field
 
 
-class TokenPayload(BaseModel):
-    """Decoded JWT payload from Clerk."""
+class LoginRequest(BaseModel):
+    """Institutional login: school-issued ID + password."""
 
-    sub: str
-    email: str | None = None
-    exp: int | None = None
-    iat: int | None = None
+    login_id: str = Field(..., min_length=1, max_length=50)
+    password: str = Field(..., min_length=1, max_length=200)
 
 
 class UserResponse(BaseModel):
-    """Public user profile returned by /me."""
+    """User profile returned by /me and inside LoginResponse."""
 
     id: int
-    clerk_id: str
+    login_id: str
     email: str | None = None
     phone: str | None = None
     role: str
@@ -35,7 +33,13 @@ class UserResponse(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    """Response returned after login verification."""
+    """Successful login: session token + profile."""
 
+    token: str
+    expires_at: datetime
     user: UserResponse
-    message: str = "Login successful"
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=200)
+    new_password: str = Field(..., min_length=8, max_length=200)

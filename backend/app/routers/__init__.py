@@ -14,7 +14,6 @@ from app.routers.cms import router as cms_router
 from app.routers.reports import router as reports_router
 from app.routers.settings import router as settings_router
 from app.routers.users import router as users_router
-from app.routers.webhooks import router as webhooks_router
 from app.routers.public import router as public_router
 from app.routers.contact import router as contact_router
 from app.routers.uploads import router as uploads_router
@@ -24,7 +23,6 @@ from app.routers.leaves import router as leaves_router
 __all__ = [
     "leaves_router",
     "users_router",
-    "webhooks_router",
     "public_router",
     "contact_router",
     "uploads_router",

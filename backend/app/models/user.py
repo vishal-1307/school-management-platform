@@ -1,11 +1,11 @@
-"""User model — linked to Clerk for authentication."""
+"""User model — institutional login (school-issued ID + password)."""
 
 from __future__ import annotations
 
 import enum
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, String, func
+from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -22,12 +22,20 @@ class UserRole(str, enum.Enum):
 
 
 class User(Base):
-    """Application user synced from Clerk; stores role and optional entity links."""
+    """Application user with an institution-issued login ID.
+
+    Students sign in with their admission number, staff with an employee
+    ID. Parents share the student's credentials (no separate identity).
+    ``token_version`` invalidates all outstanding sessions when bumped
+    (password change/reset, deactivation, logout-everywhere).
+    """
 
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    clerk_id: Mapped[str] = mapped_column(String(200), unique=True, nullable=False, index=True)
+    login_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(100), nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     email: Mapped[str | None] = mapped_column(String(255))
     phone: Mapped[str | None] = mapped_column(String(20))
     role: Mapped[UserRole] = mapped_column(
@@ -44,4 +52,4 @@ class User(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<User id={self.id} clerk_id={self.clerk_id!r} role={self.role.value}>"
+        return f"<User id={self.id} login_id={self.login_id!r} role={self.role.value}>"

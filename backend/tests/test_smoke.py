@@ -21,14 +21,42 @@ async def test_me_requires_token(client):
     assert response.status_code == 401
 
 
-async def test_dev_token_resolves(client, admin_headers):
-    response = await client.get("/api/auth/me", headers=admin_headers)
+async def test_login_and_me(client):
+    from tests.conftest import TEST_PASSWORD
+
+    response = await client.post(
+        "/api/auth/login", json={"login_id": "admin", "password": TEST_PASSWORD}
+    )
     assert response.status_code == 200
-    assert response.json()["role"] == "super_admin"
+    body = response.json()
+    assert body["user"]["role"] == "super_admin"
+    assert body["user"]["login_id"] == "admin"
+
+    me = await client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {body['token']}"}
+    )
+    assert me.status_code == 200
+    assert me.json()["role"] == "super_admin"
 
 
-async def test_unknown_dev_role_rejected(client):
-    response = await client.get("/api/auth/me", headers={"Authorization": "Bearer dev:hacker"})
+async def test_wrong_password_is_generic_401(client):
+    response = await client.post(
+        "/api/auth/login", json={"login_id": "admin", "password": "wrong-password"}
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid ID or password"
+    # Unknown ID must look identical (no user enumeration)
+    response = await client.post(
+        "/api/auth/login", json={"login_id": "no-such-user", "password": "whatever"}
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid ID or password"
+
+
+async def test_garbage_token_rejected(client):
+    response = await client.get(
+        "/api/auth/me", headers={"Authorization": "Bearer not.a.token"}
+    )
     assert response.status_code == 401
 
 
