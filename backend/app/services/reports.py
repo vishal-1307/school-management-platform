@@ -2,15 +2,26 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List
 
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.academic import Class
 from app.models.admission import AdmissionEnquiry, EnquiryStatus
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.fee import FeeStructure, FeeTransaction
+from app.models.notice import Notice
+from app.models.staff import Staff
+from app.models.student import Student
+from app.schemas.dashboard import (
+    ActivityItem,
+    AdminDashboardResponse,
+    ClassAttendanceBar,
+    KpiValue,
+    MonthlyPoint,
+)
 
 
 async def attendance_trends(
@@ -152,3 +163,221 @@ async def admission_funnel(db: AsyncSession) -> Dict[str, Any]:
         "total": total,
         "conversion_rate_percent": conversion,
     }
+
+
+def _month_bounds(months_ago: int, from_date: date) -> tuple[datetime, datetime]:
+    """[start, end) datetime bounds for the calendar month `months_ago` before from_date."""
+    year = from_date.year
+    month = from_date.month - months_ago
+    while month <= 0:
+        month += 12
+        year -= 1
+    start = datetime(year, month, 1)
+    if month == 12:
+        end = datetime(year + 1, 1, 1)
+    else:
+        end = datetime(year, month + 1, 1)
+    return start, end
+
+
+def _pct_change(current: float, previous: float) -> float | None:
+    """Percent change, or None when a baseline doesn't exist (never fake a trend)."""
+    if previous <= 0:
+        return None
+    return round((current - previous) / previous * 100, 1)
+
+
+async def admin_dashboard_summary(db: AsyncSession) -> AdminDashboardResponse:
+    """Aggregate everything the admin dashboard needs, in one call.
+
+    Every trend is computed from a real prior baseline — when that baseline
+    doesn't exist (e.g. no staff.created_at to compare against), the trend
+    is omitted rather than shown as 0% or invented.
+    """
+    today = date.today()
+    now = datetime.utcnow()
+
+    # ── Students: total + 30-day growth trend (Student.created_at exists) ──
+    total_students = (
+        await db.execute(select(func.count(Student.id)).where(Student.is_active))
+    ).scalar() or 0
+    thirty_days_ago = now - timedelta(days=30)
+    students_30d_ago = (
+        await db.execute(
+            select(func.count(Student.id)).where(
+                Student.is_active, Student.created_at <= thirty_days_ago
+            )
+        )
+    ).scalar() or 0
+    students_kpi = KpiValue(
+        value=total_students,
+        trend_percent=_pct_change(total_students, students_30d_ago) if students_30d_ago else None,
+    )
+
+    # ── Staff: total only — no created_at on Staff, so no trend to compute ──
+    total_staff = (
+        await db.execute(select(func.count(Staff.id)).where(Staff.is_active))
+    ).scalar() or 0
+    staff_kpi = KpiValue(value=total_staff, trend_percent=None)
+
+    # ── Fees: this month collected vs last month, real % change ────────────
+    this_month_start, next_month_start = _month_bounds(0, today)
+    last_month_start, last_month_end = _month_bounds(1, today)
+    this_month_collected = (
+        await db.execute(
+            select(func.coalesce(func.sum(FeeTransaction.amount_paid), 0)).where(
+                FeeTransaction.paid_at >= this_month_start,
+                FeeTransaction.paid_at < next_month_start,
+            )
+        )
+    ).scalar() or 0
+    last_month_collected = (
+        await db.execute(
+            select(func.coalesce(func.sum(FeeTransaction.amount_paid), 0)).where(
+                FeeTransaction.paid_at >= last_month_start,
+                FeeTransaction.paid_at < last_month_end,
+            )
+        )
+    ).scalar() or 0
+    fees_kpi = KpiValue(
+        value=float(this_month_collected),
+        trend_percent=_pct_change(float(this_month_collected), float(last_month_collected)),
+    )
+
+    # Real per-student pending balance — NOT sum(FeeStructure.amount), which
+    # is a per-class rate and would wildly undercount actual dues owed.
+    # Mirrors the same per-student-per-structure math /fees/defaulters uses.
+    structures = (await db.execute(select(FeeStructure))).scalars().all()
+    students_by_class: dict[int, list[int]] = {}
+    for row in await db.execute(select(Student.id, Student.class_id).where(Student.is_active)):
+        students_by_class.setdefault(row.class_id, []).append(row.id)
+    paid_by_pair: dict[tuple[int, int], float] = {}
+    paid_rows = await db.execute(
+        select(
+            FeeTransaction.student_id,
+            FeeTransaction.fee_structure_id,
+            func.sum(FeeTransaction.amount_paid),
+        ).group_by(FeeTransaction.student_id, FeeTransaction.fee_structure_id)
+    )
+    for student_id, structure_id, total_paid in paid_rows.all():
+        paid_by_pair[(student_id, structure_id)] = float(total_paid or 0)
+
+    fees_pending = 0.0
+    for structure in structures:
+        for student_id in students_by_class.get(structure.class_id, []):
+            paid = paid_by_pair.get((student_id, structure.id), 0.0)
+            fees_pending += max(0.0, structure.amount - paid)
+
+    new_enquiries = (
+        await db.execute(
+            select(func.count(AdmissionEnquiry.id)).where(
+                AdmissionEnquiry.status == EnquiryStatus.NEW
+            )
+        )
+    ).scalar() or 0
+
+    # ── Fee collection — last 6 calendar months, zero-filled ───────────────
+    month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    fee_collection_by_month: list[MonthlyPoint] = []
+    for months_ago in range(5, -1, -1):
+        start, end = _month_bounds(months_ago, today)
+        amount = (
+            await db.execute(
+                select(func.coalesce(func.sum(FeeTransaction.amount_paid), 0)).where(
+                    FeeTransaction.paid_at >= start, FeeTransaction.paid_at < end
+                )
+            )
+        ).scalar() or 0
+        fee_collection_by_month.append(
+            MonthlyPoint(
+                month=f"{start.year:04d}-{start.month:02d}",
+                label=month_labels[start.month - 1],
+                amount=float(amount),
+            )
+        )
+
+    # ── Attendance by class — this week (Mon..today), classes with data only
+    week_start = today - timedelta(days=today.weekday())
+    attendance_rows = await db.execute(
+        select(
+            Class.name,
+            func.count().label("total"),
+            func.count(
+                case((Attendance.status.in_([AttendanceStatus.PRESENT, AttendanceStatus.LATE]), 1))
+            ).label("present"),
+        )
+        .select_from(Attendance)
+        .join(Student, Student.id == Attendance.student_id)
+        .join(Class, Class.id == Student.class_id)
+        .where(Attendance.date >= week_start, Attendance.date <= today)
+        .group_by(Class.name, Class.numeric_order)
+        .order_by(Class.numeric_order)
+    )
+    attendance_by_class = [
+        ClassAttendanceBar(
+            class_name=row.name,
+            percentage=round(row.present / row.total * 100, 1) if row.total else 0.0,
+        )
+        for row in attendance_rows.all()
+    ]
+
+    # ── Recent activity feed — notices, enquiries, payments merged ─────────
+    activity: list[ActivityItem] = []
+
+    recent_notices = (
+        await db.execute(
+            select(Notice)
+            .where(Notice.published_at.is_not(None))
+            .order_by(Notice.published_at.desc())
+            .limit(5)
+        )
+    ).scalars().all()
+    activity += [
+        ActivityItem(type="notice", text=f"Notice published: {n.title}", at=n.published_at)
+        for n in recent_notices
+    ]
+
+    recent_enquiries = (
+        await db.execute(
+            select(AdmissionEnquiry).order_by(AdmissionEnquiry.created_at.desc()).limit(5)
+        )
+    ).scalars().all()
+    activity += [
+        ActivityItem(
+            type="enquiry",
+            text=f"New admission enquiry: {e.child_name} ({e.class_applying})",
+            at=e.created_at,
+        )
+        for e in recent_enquiries
+    ]
+
+    recent_payments = (
+        await db.execute(
+            select(FeeTransaction, Student)
+            .join(Student, Student.id == FeeTransaction.student_id)
+            .order_by(FeeTransaction.paid_at.desc())
+            .limit(5)
+        )
+    ).all()
+    activity += [
+        ActivityItem(
+            type="payment",
+            text=f"₹{txn.amount_paid:,.0f} received from {student.first_name} {student.last_name}",
+            at=txn.paid_at,
+        )
+        for txn, student in recent_payments
+    ]
+
+    activity.sort(key=lambda item: item.at, reverse=True)
+
+    return AdminDashboardResponse(
+        total_students=students_kpi,
+        total_staff=staff_kpi,
+        fees_collected=fees_kpi,
+        fees_pending=round(fees_pending, 2),
+        new_enquiries=new_enquiries,
+        fee_collection_by_month=fee_collection_by_month,
+        attendance_by_class=attendance_by_class,
+        recent_activity=activity[:8],
+        generated_at=now,
+    )

@@ -15,19 +15,24 @@ class LoginRequest(BaseModel):
 
 
 class UserResponse(BaseModel):
-    """User profile returned by /me and inside LoginResponse."""
+    """User profile returned by /me and inside LoginResponse.
+
+    ``display_name`` and ``class_label`` are computed at request time from
+    the linked Staff/Student record (never stored) — no email is ever
+    surfaced to the frontend for this ID-only login system.
+    """
 
     id: int
     login_id: str
-    email: str | None = None
     phone: str | None = None
     role: str
     linked_staff_id: int | None = None
     linked_student_id: int | None = None
     linked_parent_id: int | None = None
     is_active: bool
-    permissions: dict | None = None
     created_at: datetime
+    display_name: str = ""
+    class_label: str | None = None
 
     model_config = {"from_attributes": True}
 

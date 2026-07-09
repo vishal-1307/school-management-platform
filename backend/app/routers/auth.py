@@ -11,10 +11,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.models.user import User
+from app.models.staff import Staff
+from app.models.student import Student
+from app.models.user import User, UserRole
 from app.schemas.auth import ChangePasswordRequest, LoginRequest, LoginResponse, UserResponse
 from app.schemas.common import MessageResponse
 from app.services.ratelimit import LOGIN_ID_FAILURES, LOGIN_IP_ATTEMPTS, client_ip
@@ -26,6 +29,44 @@ from app.services.security import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+async def _build_user_response(db: AsyncSession, user: User) -> UserResponse:
+    """Attach a display name and class/subject label from the linked record.
+
+    Never touches email — this is an ID-only login system and no address
+    should ever reach the frontend for the signed-in user's own profile.
+    """
+    response = UserResponse.model_validate(user)
+
+    if user.linked_student_id:
+        student = await db.get(
+            Student, user.linked_student_id,
+            options=[selectinload(Student.class_), selectinload(Student.section)],
+        )
+        if student:
+            response.display_name = f"{student.first_name} {student.last_name}"
+            class_name = student.class_.name if student.class_ else ""
+            section_name = student.section.name if student.section else ""
+            response.class_label = f"{class_name}-{section_name}" if class_name else None
+    elif user.linked_staff_id:
+        staff = await db.get(
+            Staff, user.linked_staff_id,
+            options=[selectinload(Staff.subject_assignments)],
+        )
+        if staff:
+            response.display_name = f"{staff.first_name} {staff.last_name}"
+            subject_names = sorted({
+                a.subject.name for a in staff.subject_assignments if a.subject
+            })
+            response.class_label = ", ".join(subject_names) if subject_names else None
+    else:
+        # Admin/office-admin accounts have no linked person record.
+        response.display_name = (
+            "Super Admin" if user.role == UserRole.SUPER_ADMIN else "Office Admin"
+        )
+
+    return response
 
 _BAD_CREDENTIALS = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -71,16 +112,17 @@ async def login(
     return LoginResponse(
         token=token,
         expires_at=expires_at,
-        user=UserResponse.model_validate(user),
+        user=await _build_user_response(db, user),
     )
 
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> UserResponse:
     """Return the currently authenticated user's profile."""
-    return UserResponse.model_validate(current_user)
+    return await _build_user_response(db, current_user)
 
 
 @router.post("/change-password", response_model=LoginResponse)
@@ -103,7 +145,7 @@ async def change_password(
     return LoginResponse(
         token=token,
         expires_at=expires_at,
-        user=UserResponse.model_validate(current_user),
+        user=await _build_user_response(db, current_user),
     )
 
 

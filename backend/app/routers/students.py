@@ -15,10 +15,22 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.middleware.auth import require_role
 from app.models.academic import Section
+from app.models.attendance import Attendance, AttendanceStatus
+from app.models.exam import Exam, ExamSubject, Mark
+from app.models.fee import FeeStructure, FeeTransaction
+from app.models.homework import Homework, HomeworkSubmission
+from app.models.notice import Notice, NoticeAudience
 from app.models.school import School
 from app.models.student import Parent, Student
+from app.models.timetable import TimetableSlot
 from app.models.user import User, UserRole
 from app.schemas.common import MessageResponse
+from app.schemas.dashboard import (
+    DashboardNotice,
+    LatestResult,
+    StudentDashboardResponse,
+    TimetablePeriod,
+)
 from app.schemas.student import (
     BulkImportResponse,
     PromoteClassRequest,
@@ -29,6 +41,7 @@ from app.schemas.student import (
     StudentUpdate,
 )
 from app.services.certificates import generate_tc
+from app.services.schedule import current_period_number, today_day_name
 
 router = APIRouter(prefix="/students", tags=["Students"])
 
@@ -202,6 +215,146 @@ async def get_my_student_record(
     if not student:
         raise HTTPException(status_code=404, detail="Student record not found")
     return StudentResponse.model_validate(student)
+
+
+@router.get("/me/dashboard", response_model=StudentDashboardResponse)
+async def get_my_dashboard(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.STUDENT, UserRole.PARENT)),
+) -> StudentDashboardResponse:
+    """Everything the student dashboard needs, in one request (SRS 8.1)."""
+    if current_user.linked_student_id is None:
+        raise HTTPException(status_code=409, detail="Your login is not linked to a student record")
+
+    student = await db.get(Student, current_user.linked_student_id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student record not found")
+
+    # ── Attendance percentage ───────────────────────────────────────────
+    att_result = await db.execute(
+        select(Attendance.status).where(Attendance.student_id == student.id)
+    )
+    statuses = [row[0] for row in att_result.all()]
+    total = len(statuses)
+    present = sum(1 for s in statuses if s in (AttendanceStatus.PRESENT, AttendanceStatus.LATE))
+    attendance_percentage = round(present / total * 100, 1) if total else None
+
+    # ── Pending homework: assigned to my class/section, not yet submitted
+    hw_result = await db.execute(
+        select(Homework.id).where(
+            Homework.class_id == student.class_id, Homework.section_id == student.section_id
+        )
+    )
+    homework_ids = {row[0] for row in hw_result.all()}
+    submitted_result = await db.execute(
+        select(HomeworkSubmission.homework_id).where(
+            HomeworkSubmission.student_id == student.id,
+            HomeworkSubmission.homework_id.in_(homework_ids) if homework_ids else False,
+        )
+    )
+    submitted_ids = {row[0] for row in submitted_result.all()}
+    pending_homework_count = len(homework_ids - submitted_ids)
+
+    # ── Latest published result (FR-16: never surface an unpublished exam)
+    latest_result: LatestResult | None = None
+    exam_result = await db.execute(
+        select(Exam)
+        .where(Exam.class_id == student.class_id, Exam.results_published.is_(True))
+        .order_by(Exam.start_date.desc())
+        .limit(1)
+    )
+    latest_exam = exam_result.scalar_one_or_none()
+    if latest_exam:
+        es_result = await db.execute(
+            select(ExamSubject).where(ExamSubject.exam_id == latest_exam.id)
+        )
+        exam_subjects = es_result.scalars().all()
+        total_max = sum(es.max_marks for es in exam_subjects)
+        marks_result = await db.execute(
+            select(Mark).where(
+                Mark.student_id == student.id,
+                Mark.exam_subject_id.in_([es.id for es in exam_subjects]),
+            )
+        )
+        obtained = sum(m.marks_obtained or 0 for m in marks_result.scalars().all())
+        percentage = round(obtained / total_max * 100, 1) if total_max else None
+        grade = None
+        if percentage is not None:
+            grade = (
+                "A+" if percentage >= 90 else "A" if percentage >= 80 else "B+" if percentage >= 70
+                else "B" if percentage >= 60 else "C" if percentage >= 50 else "D" if percentage >= 40
+                else "F"
+            )
+        latest_result = LatestResult(
+            exam_name=latest_exam.name, published=True, percentage=percentage, grade=grade
+        )
+
+    # ── Fee due: outstanding balance across every structure for my class
+    structures_result = await db.execute(
+        select(FeeStructure).where(FeeStructure.class_id == student.class_id)
+    )
+    structures = structures_result.scalars().all()
+    fee_due = 0.0
+    for structure in structures:
+        paid_result = await db.execute(
+            select(func.coalesce(func.sum(FeeTransaction.amount_paid), 0)).where(
+                FeeTransaction.student_id == student.id,
+                FeeTransaction.fee_structure_id == structure.id,
+            )
+        )
+        paid = float(paid_result.scalar() or 0)
+        fee_due += max(0.0, structure.amount - paid)
+
+    # ── Today's timetable ───────────────────────────────────────────────
+    day = today_day_name()
+    slots_result = await db.execute(
+        select(TimetableSlot)
+        .where(
+            TimetableSlot.class_id == student.class_id,
+            TimetableSlot.section_id == student.section_id,
+            TimetableSlot.day_of_week == day,
+        )
+        .order_by(TimetableSlot.period_number)
+    )
+    now_period = current_period_number()
+    today_timetable = [
+        TimetablePeriod(
+            period_number=slot.period_number,
+            subject_name=slot.subject.name if slot.subject else "",
+            subtitle=f"{slot.staff.first_name} {slot.staff.last_name}" if slot.staff else "",
+            is_current=(slot.period_number == now_period),
+        )
+        for slot in slots_result.scalars().all()
+    ]
+
+    # ── Recent notices: everyone, or targeted at my class ───────────────
+    notices_result = await db.execute(
+        select(Notice)
+        .where(
+            Notice.published_at.is_not(None),
+            (Notice.audience == NoticeAudience.EVERYONE)
+            | (
+                (Notice.audience == NoticeAudience.CLASS)
+                & (Notice.target_class_id == student.class_id)
+            ),
+        )
+        .order_by(Notice.published_at.desc())
+        .limit(5)
+    )
+    recent_notices = [
+        DashboardNotice(id=n.id, title=n.title, published_at=n.published_at)
+        for n in notices_result.scalars().all()
+    ]
+
+    return StudentDashboardResponse(
+        attendance_percentage=attendance_percentage,
+        pending_homework_count=pending_homework_count,
+        latest_result=latest_result,
+        fee_due=round(fee_due, 2),
+        today_timetable=today_timetable,
+        recent_notices=recent_notices,
+        generated_at=datetime.utcnow(),
+    )
 
 
 @router.get("/{student_id}", response_model=StudentResponse)

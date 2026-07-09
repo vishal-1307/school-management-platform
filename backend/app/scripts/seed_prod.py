@@ -363,6 +363,17 @@ async def _seed_demo_walkthrough(
         session.add(Mark(exam_subject_id=es_ut_math.id, student_id=student.id,
                           marks_obtained=m, is_submitted=True))
 
+    # Still open, no marks entered — populates the "Pending Marks Entry"
+    # card on t1's (EMP-001) teacher dashboard.
+    exam_open = Exam(
+        name="Unit Test 1", academic_year_id=year.id, class_id=class4.id,
+        exam_type="Unit Test", start_date=date.today() + timedelta(days=2),
+        end_date=date.today() + timedelta(days=3), is_locked=False, results_published=False,
+    )
+    session.add(exam_open)
+    await session.flush()
+    session.add(ExamSubject(exam_id=exam_open.id, subject_id=math.id, max_marks=50, passing_marks=17))
+
     # ── Fees: Tuition (all Class 3) — full/partial/defaulter mix ────────
     tuition = FeeStructure(class_id=class3.id, academic_year_id=year.id, fee_head="Tuition Fee",
                            amount=8000, due_date=date.today() - timedelta(days=20), term="Term 1")
@@ -374,24 +385,39 @@ async def _seed_demo_walkthrough(
     def _receipt(n: int) -> str:
         return f"RCT-{n:05d}"
 
+    def _months_ago(n: int) -> datetime:
+        """Approximate 'n months ago' — spreads demo payments across the
+        6-month collection chart instead of dumping everything in today's
+        bucket. Balances are unaffected (they sum by student, not by date)."""
+        year, month = date.today().year, date.today().month - n
+        while month <= 0:
+            month += 12
+            year -= 1
+        return datetime(year, month, min(date.today().day, 28), 11, 0)
+
     receipt_no = 1
     for idx, student in enumerate(class3_students):
-        if idx == 0:  # fully paid both heads
+        if idx == 0:  # fully paid both heads, a few months back
             session.add(FeeTransaction(student_id=student.id, fee_structure_id=tuition.id,
                                         amount_paid=8000, payment_mode=PaymentMode.ONLINE,
+                                        paid_at=_months_ago(4),
                                         receipt_number=_receipt(receipt_no))); receipt_no += 1
             session.add(FeeTransaction(student_id=student.id, fee_structure_id=exam_fee.id,
                                         amount_paid=1200, payment_mode=PaymentMode.CASH,
+                                        paid_at=_months_ago(3),
                                         receipt_number=_receipt(receipt_no))); receipt_no += 1
         elif idx == 1:  # partially paid tuition, unpaid exam fee
             session.add(FeeTransaction(student_id=student.id, fee_structure_id=tuition.id,
                                         amount_paid=4000, payment_mode=PaymentMode.CASH,
+                                        paid_at=_months_ago(2),
                                         receipt_number=_receipt(receipt_no))); receipt_no += 1
         elif idx == 2:  # zero paid — clearest defaulter
             pass
-        else:  # rest: fully paid tuition only
+        else:  # rest: fully paid tuition only, spread across last month + this month
+            months_back = 1 if idx % 2 == 0 else 0
             session.add(FeeTransaction(student_id=student.id, fee_structure_id=tuition.id,
                                         amount_paid=8000, payment_mode=PaymentMode.CASH,
+                                        paid_at=_months_ago(months_back),
                                         receipt_number=_receipt(receipt_no))); receipt_no += 1
 
     # ── Notices: everyone / class-targeted / staff-only ─────────────────
@@ -409,6 +435,10 @@ async def _seed_demo_walkthrough(
                content="All teaching staff to attend the monthly review meeting in the staff room.",
                audience=NoticeAudience.STAFF, channels=["app"],
                published_at=now - timedelta(days=2), created_by_id=None),
+        Notice(title="Sports Day Practice Schedule",
+               content="Class 3 sports day practice will be held every morning this week before assembly.",
+               audience=NoticeAudience.CLASS, target_class_id=class3.id, channels=["app"],
+               published_at=now - timedelta(hours=6), created_by_id=None),
     ])
 
     # ── Timetable: full week for Class 3 - A ────────────────────────────

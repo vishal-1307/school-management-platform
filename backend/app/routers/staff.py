@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -12,10 +13,26 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import require_role
+from app.models.attendance import Attendance
+from app.models.exam import Exam, ExamSubject, Mark
+from app.models.homework import Homework, HomeworkSubmission, SubmissionStatus
+from app.models.notice import Notice, NoticeAudience
 from app.models.staff import Staff, StaffSubjectAssignment
+from app.models.student import Student
+from app.models.timetable import TimetableSlot
 from app.models.user import User, UserRole
 from app.schemas.common import MessageResponse
+from app.schemas.dashboard import (
+    AttendanceStatusSummary,
+    ClassSectionRef,
+    DashboardNotice,
+    MyClassChip,
+    PendingMarksRow,
+    TeacherDashboardResponse,
+    TimetablePeriod,
+)
 from app.schemas.staff import StaffCreate, StaffResponse, StaffSubjectAssignmentSchema, StaffUpdate
+from app.services.schedule import current_period_number, today_day_name
 
 router = APIRouter(prefix="/staff", tags=["Staff"])
 
@@ -119,6 +136,178 @@ async def update_my_staff_record(
         .where(Staff.id == staff.id),
     )
     return StaffResponse.model_validate(result.scalar_one())
+
+
+@router.get("/me/dashboard", response_model=TeacherDashboardResponse)
+async def get_my_dashboard(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.TEACHER)),
+) -> TeacherDashboardResponse:
+    """Everything the teacher dashboard needs, in one request (SRS 7.1)."""
+    if current_user.linked_staff_id is None:
+        raise HTTPException(status_code=409, detail="Your login is not linked to a staff record")
+    staff_id = current_user.linked_staff_id
+
+    assignments_result = await db.execute(
+        select(StaffSubjectAssignment)
+        .options(
+            selectinload(StaffSubjectAssignment.subject),
+            selectinload(StaffSubjectAssignment.class_),
+            selectinload(StaffSubjectAssignment.section),
+        )
+        .where(StaffSubjectAssignment.staff_id == staff_id)
+    )
+    assignments = assignments_result.scalars().all()
+
+    # ── Today's schedule ─────────────────────────────────────────────────
+    day = today_day_name()
+    slots_result = await db.execute(
+        select(TimetableSlot)
+        .where(TimetableSlot.staff_id == staff_id, TimetableSlot.day_of_week == day)
+        .order_by(TimetableSlot.period_number)
+    )
+    now_period = current_period_number()
+    today_schedule = [
+        TimetablePeriod(
+            period_number=slot.period_number,
+            subject_name=slot.subject.name if slot.subject else "",
+            subtitle=f"{slot.class_.name} {slot.section.name}" if slot.class_ and slot.section else "",
+            is_current=(slot.period_number == now_period),
+        )
+        for slot in slots_result.scalars().all()
+    ]
+
+    # ── Attendance-marked-today, per distinct assigned class/section ───
+    pairs = {(a.class_id, a.section_id) for a in assignments}
+    today_date = datetime.utcnow().date()
+    pending_pairs: list[ClassSectionRef] = []
+    for class_id, section_id in pairs:
+        total_result = await db.execute(
+            select(func.count(Student.id)).where(
+                Student.class_id == class_id, Student.section_id == section_id, Student.is_active
+            )
+        )
+        total_students = total_result.scalar() or 0
+        marked_result = await db.execute(
+            select(func.count(func.distinct(Attendance.student_id)))
+            .select_from(Attendance)
+            .join(Student, Student.id == Attendance.student_id)
+            .where(
+                Student.class_id == class_id,
+                Student.section_id == section_id,
+                Attendance.date == today_date,
+            )
+        )
+        marked = marked_result.scalar() or 0
+        if total_students > 0 and marked < total_students:
+            match = next(
+                (a for a in assignments if a.class_id == class_id and a.section_id == section_id),
+                None,
+            )
+            if match:
+                pending_pairs.append(
+                    ClassSectionRef(
+                        class_id=class_id, section_id=section_id,
+                        class_name=match.class_.name if match.class_ else "",
+                        section_name=match.section.name if match.section else "",
+                    )
+                )
+    attendance_status = AttendanceStatusSummary(
+        all_marked=(len(pending_pairs) == 0), pending=pending_pairs
+    )
+
+    # ── Homework submissions awaiting review (own assignments only) ────
+    hw_ids_result = await db.execute(
+        select(Homework.id).where(Homework.assigned_by_id == staff_id)
+    )
+    my_homework_ids = [row[0] for row in hw_ids_result.all()]
+    homework_to_review_count = 0
+    if my_homework_ids:
+        review_count_result = await db.execute(
+            select(func.count(HomeworkSubmission.id)).where(
+                HomeworkSubmission.homework_id.in_(my_homework_ids),
+                HomeworkSubmission.status == SubmissionStatus.SUBMITTED,
+            )
+        )
+        homework_to_review_count = review_count_result.scalar() or 0
+
+    # ── My classes (deduped subject/class/section chips) ───────────────
+    my_classes = [
+        MyClassChip(
+            class_name=a.class_.name if a.class_ else "",
+            section_name=a.section.name if a.section else "",
+            subject_name=a.subject.name if a.subject else "",
+        )
+        for a in assignments
+    ]
+
+    # ── Latest notice visible to staff ──────────────────────────────────
+    notice_result = await db.execute(
+        select(Notice)
+        .where(
+            Notice.published_at.is_not(None),
+            (Notice.audience == NoticeAudience.EVERYONE)
+            | (Notice.audience == NoticeAudience.STAFF),
+        )
+        .order_by(Notice.published_at.desc())
+        .limit(1)
+    )
+    latest = notice_result.scalar_one_or_none()
+    latest_notice = (
+        DashboardNotice(id=latest.id, title=latest.title, published_at=latest.published_at)
+        if latest else None
+    )
+
+    # ── Pending marks entry: my subject/class exam-subjects, unlocked,
+    #    with fewer marks entered than active students in that class ────
+    pending_marks: list[PendingMarksRow] = []
+    seen_subject_class = {(a.subject_id, a.class_id) for a in assignments}
+    for subject_id, class_id in seen_subject_class:
+        es_result = await db.execute(
+            select(ExamSubject)
+            .options(selectinload(ExamSubject.exam), selectinload(ExamSubject.subject))
+            .join(Exam, Exam.id == ExamSubject.exam_id)
+            .where(
+                ExamSubject.subject_id == subject_id,
+                Exam.class_id == class_id,
+                Exam.is_locked.is_(False),
+            )
+        )
+        for es in es_result.scalars().all():
+            total_result = await db.execute(
+                select(func.count(Student.id)).where(
+                    Student.class_id == class_id, Student.is_active
+                )
+            )
+            total_students = total_result.scalar() or 0
+            entered_result = await db.execute(
+                select(func.count(Mark.id)).where(
+                    Mark.exam_subject_id == es.id, Mark.marks_obtained.is_not(None)
+                )
+            )
+            entered_count = entered_result.scalar() or 0
+            if total_students > 0 and entered_count < total_students:
+                pending_marks.append(
+                    PendingMarksRow(
+                        exam_id=es.exam_id,
+                        exam_subject_id=es.id,
+                        exam_name=es.exam.name if es.exam else "",
+                        subject_name=es.subject.name if es.subject else "",
+                        class_name=es.exam.class_.name if es.exam and es.exam.class_ else "",
+                        entered_count=entered_count,
+                        total_students=total_students,
+                    )
+                )
+
+    return TeacherDashboardResponse(
+        today_schedule=today_schedule,
+        attendance_status=attendance_status,
+        homework_to_review_count=homework_to_review_count,
+        my_classes=my_classes,
+        latest_notice=latest_notice,
+        pending_marks=pending_marks,
+        generated_at=datetime.utcnow(),
+    )
 
 
 @router.get("/{staff_id}", response_model=StaffResponse)
