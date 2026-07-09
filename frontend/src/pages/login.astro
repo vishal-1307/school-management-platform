@@ -6,14 +6,54 @@ import SignInForm from "../components/SignInForm.tsx";
 ---
 
 <PortalLayout title="Sign In — Knowledge Development Kindergarten Academy">
-  <section class="min-h-screen flex flex-col items-center justify-center px-4 py-16 bg-slate-50 space-y-8">
-    <a href="/" class="text-center space-y-1">
-      <p class="font-heading font-extrabold text-2xl text-slate-900">Knowledge Academy</p>
-      <p class="text-sm font-bold text-indigo-600">Portal Sign In</p>
-    </a>
+  <div class="min-h-screen flex flex-col lg:flex-row">
+    <!-- Brand panel -->
+    <aside class="lg:w-1/2 bg-gradient-to-br from-indigo-900 via-indigo-850 to-indigo-950 text-white flex flex-col justify-between px-8 py-10 lg:px-16 lg:py-16">
+      <a href="/" class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-heading font-extrabold text-lg">
+          KA
+        </div>
+        <div>
+          <p class="font-heading font-extrabold leading-tight">Knowledge Academy</p>
+          <p class="text-xs text-indigo-200 font-semibold">Development Kindergarten Academy</p>
+        </div>
+      </a>
 
-    <SignInForm client:load />
+      <div class="space-y-6 max-w-md">
+        <h1 class="text-3xl lg:text-4xl font-extrabold font-heading leading-tight">
+          One login for the whole school.
+        </h1>
+        <p class="text-indigo-200 font-semibold leading-relaxed">
+          Admin, teachers, students, and parents all sign in here with the ID and password issued
+          by the school office — no separate accounts to manage.
+        </p>
+        <ul class="space-y-3 text-sm font-semibold text-indigo-100">
+          <li class="flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Attendance, homework, and results in one place
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Fee status and online payments
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Notices and updates from the school
+          </li>
+        </ul>
+      </div>
 
-    <a href="/" class="text-xs font-bold text-slate-400 hover:text-slate-600">← Back to website</a>
-  </section>
+      <p class="text-xs text-indigo-300 font-semibold">
+        © {new Date().getFullYear()} Knowledge Development Kindergarten Academy
+      </p>
+    </aside>
+
+    <!-- Sign-in card -->
+    <main class="flex-1 flex items-center justify-center px-4 py-12 lg:py-16 bg-slate-50">
+      <div class="w-full flex flex-col items-center gap-6">
+        <SignInForm client:load />
+        <a href="/" class="text-xs font-bold text-slate-400 hover:text-slate-600">← Back to website</a>
+      </div>
+    </main>
+  </div>
 </PortalLayout>
