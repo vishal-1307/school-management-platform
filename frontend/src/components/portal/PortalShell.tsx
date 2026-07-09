@@ -33,7 +33,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getMe, portalHomeFor, signOut, type Me } from "../../lib/authStore";
-import { Spinner, ToastProvider } from "./kit";
+import { useIdleTimeout } from "../../lib/useIdleTimeout";
+import { Button, Modal, Spinner, ToastProvider } from "./kit";
 
 interface NavItem {
   label: string;
@@ -222,6 +223,7 @@ export default function PortalShell({
   const [me, setMe] = useState<Me | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "unauthorized">("loading");
   const [menuOpen, setMenuOpen] = useState(false);
+  const idle = useIdleTimeout();
 
   useEffect(() => {
     getMe().then((user) => {
@@ -239,6 +241,21 @@ export default function PortalShell({
     });
   }, [portal]);
 
+  useEffect(() => {
+    // Cache-Control: no-store stops HTTP caching, but the back-forward
+    // cache restores pages from memory without any request. If this DOM is
+    // resurrected that way, re-validate the session before showing it.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        getMe(true).then((user) => {
+          if (!user) window.location.replace("/login");
+        });
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   if (state !== "ready" || !me) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -252,6 +269,15 @@ export default function PortalShell({
 
   return (
     <ToastProvider>
+      <Modal title="Are you still there?" open={idle.warning} onClose={idle.staySignedIn}>
+        <div className="space-y-4">
+          <p className="text-sm font-semibold text-slate-600">
+            You&apos;ll be signed out soon due to inactivity — in about{" "}
+            <span className="font-extrabold text-slate-900">{idle.secondsLeft}s</span>.
+          </p>
+          <Button onClick={idle.staySignedIn}>Stay signed in</Button>
+        </div>
+      </Modal>
       <div className="min-h-screen bg-slate-50 flex">
         {/* Sidebar */}
         <aside

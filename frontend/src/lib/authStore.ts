@@ -8,7 +8,7 @@
  * entity links.
  */
 
-import { API_URL, authFetch } from "./api";
+import { authFetch } from "./api";
 
 export interface Me {
   id: number;
@@ -60,11 +60,15 @@ export function portalHomeFor(role: string): string {
 export async function signOut(): Promise<void> {
   me = null;
   try {
-    // Best-effort server-side revocation of every session for this account.
-    await fetch(`${API_URL}/api/auth/logout`, { method: "POST" });
+    // Server-side revocation: bumps token_version, invalidating every
+    // outstanding JWT for this account (parents share the student login, so
+    // this signs the account out on all devices — the only revocation
+    // mechanism is account-wide). Best-effort: if offline, still clear the
+    // client; the token then dies at its 24h expiry.
+    await authFetch("/api/auth/logout-all", { method: "POST" });
   } catch {
-    /* stateless logout is fine */
+    /* offline sign-out still clears the client */
   }
   clearSession();
-  window.location.href = "/login";
+  window.location.replace("/login");
 }

@@ -66,5 +66,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (!role) return context.redirect("/login");
   if (!roles.includes(role)) return context.redirect("/portal");
 
-  return next();
+  const response = await next();
+  // Authenticated pages must never be served from browser/proxy cache —
+  // otherwise the back button can show a signed-out user's dashboard.
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  response.headers.set("Pragma", "no-cache");
+  return response;
 });
