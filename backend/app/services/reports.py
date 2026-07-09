@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 from sqlalchemy import and_, case, func, select
@@ -195,7 +195,10 @@ async def admin_dashboard_summary(db: AsyncSession) -> AdminDashboardResponse:
     is omitted rather than shown as 0% or invented.
     """
     today = date.today()
-    now = datetime.utcnow()
+    # Timezone-AWARE (not utcnow()) so the serialized ISO string carries a
+    # 'Z'/offset — a naive string gets misparsed as local time by browsers,
+    # which silently skews every "Xh ago" label by the viewer's UTC offset.
+    now = datetime.now(timezone.utc)
 
     # ── Students: total + 30-day growth trend (Student.created_at exists) ──
     total_students = (

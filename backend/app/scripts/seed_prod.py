@@ -18,7 +18,7 @@ that file for the full table and the wipe procedure before real data.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 
@@ -388,12 +388,14 @@ async def _seed_demo_walkthrough(
     def _months_ago(n: int) -> datetime:
         """Approximate 'n months ago' — spreads demo payments across the
         6-month collection chart instead of dumping everything in today's
-        bucket. Balances are unaffected (they sum by student, not by date)."""
+        bucket. Balances are unaffected (they sum by student, not by date).
+        Timezone-aware (not a naive datetime) to match the tz-aware paid_at
+        column and avoid a naive-vs-aware mismatch on Postgres."""
         year, month = date.today().year, date.today().month - n
         while month <= 0:
             month += 12
             year -= 1
-        return datetime(year, month, min(date.today().day, 28), 11, 0)
+        return datetime(year, month, min(date.today().day, 28), 11, 0, tzinfo=timezone.utc)
 
     receipt_no = 1
     for idx, student in enumerate(class3_students):

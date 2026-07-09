@@ -13,13 +13,14 @@ import { API_URL, authFetch } from "./api";
 export interface Me {
   id: number;
   login_id: string;
-  email: string | null;
   phone: string | null;
   role: string;
   linked_staff_id: number | null;
   linked_student_id: number | null;
   linked_parent_id: number | null;
   is_active: boolean;
+  display_name: string;
+  class_label: string | null;
 }
 
 const TOKEN_KEY = "auth_token";

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -353,7 +353,7 @@ async def get_my_dashboard(
         fee_due=round(fee_due, 2),
         today_timetable=today_timetable,
         recent_notices=recent_notices,
-        generated_at=datetime.utcnow(),
+        generated_at=datetime.now(timezone.utc),
     )
 
 
