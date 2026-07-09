@@ -48,7 +48,7 @@ def upgrade() -> None:
     sa.Column('address', sa.Text(), nullable=True),
     sa.Column('source', sa.String(length=50), nullable=True, comment='website/referral/walk-in'),
     sa.Column('message', sa.Text(), nullable=True),
-    sa.Column('status', sa.Enum('NEW', 'CONTACTED', 'VISITED', 'ADMITTED', 'NOT_INTERESTED', name='enquiry_status', create_constraint=True), server_default='new', nullable=False),
+    sa.Column('status', sa.Enum('NEW', 'CONTACTED', 'VISITED', 'ADMITTED', 'NOT_INTERESTED', name='enquiry_status', create_constraint=True), server_default='NEW', nullable=False),
     sa.Column('notes', sa.Text(), nullable=True, comment='Internal admin notes'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id')
@@ -114,7 +114,7 @@ def upgrade() -> None:
     sa.Column('message_type', sa.String(length=30), nullable=False, comment='template/text/media'),
     sa.Column('content_summary', sa.Text(), nullable=True),
     sa.Column('template_name', sa.String(length=100), nullable=True),
-    sa.Column('delivery_status', sa.Enum('QUEUED', 'SENT', 'DELIVERED', 'FAILED', 'SKIPPED', name='delivery_status', create_constraint=True), server_default='queued', nullable=False),
+    sa.Column('delivery_status', sa.Enum('QUEUED', 'SENT', 'DELIVERED', 'FAILED', 'SKIPPED', name='delivery_status', create_constraint=True), server_default='QUEUED', nullable=False),
     sa.Column('sent_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -287,7 +287,7 @@ def upgrade() -> None:
     sa.Column('student_id', sa.Integer(), nullable=False),
     sa.Column('submission_url', sa.String(length=512), nullable=True),
     sa.Column('submitted_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'SUBMITTED', 'REVIEWED', name='submission_status', create_constraint=True), server_default='pending', nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'SUBMITTED', 'REVIEWED', name='submission_status', create_constraint=True), server_default='PENDING', nullable=False),
     sa.Column('remarks', sa.Text(), nullable=True),
     sa.ForeignKeyConstraint(['homework_id'], ['homeworks.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),

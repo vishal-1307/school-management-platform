@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('start_date', sa.Date(), nullable=False),
     sa.Column('end_date', sa.Date(), nullable=False),
     sa.Column('reason', sa.Text(), nullable=False),
-    sa.Column('status', sa.Enum('PENDING', 'APPROVED', 'REJECTED', name='leave_status', create_constraint=True), server_default='pending', nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'APPROVED', 'REJECTED', name='leave_status', create_constraint=True), server_default='PENDING', nullable=False),
     sa.Column('reviewed_by_id', sa.Integer(), nullable=True),
     sa.Column('review_note', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
