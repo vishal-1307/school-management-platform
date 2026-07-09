@@ -4,8 +4,8 @@
  * the user lands in — there's no separate admin/teacher/student page.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { API_URL } from "../lib/api";
+import { useState } from "react";
+import { API_URL, publicGet } from "../lib/api";
 import { portalHomeFor, storeSession } from "../lib/authStore";
 
 interface LoginResponse {
@@ -13,65 +13,92 @@ interface LoginResponse {
   user: { role: string };
 }
 
-const WAKE_HINT_DELAY_MS = 4000;
+const FIRST_ATTEMPT_TIMEOUT_MS = 20000;
+const WAKE_POLL_INTERVAL_MS = 4000;
+const WAKE_POLL_MAX_MS = 120000; // Render cold boot + Neon autosuspend wake can stack up
+
+async function attemptLogin(loginId: string, password: string): Promise<Response> {
+  return fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login_id: loginId, password }),
+    signal: AbortSignal.timeout(FIRST_ATTEMPT_TIMEOUT_MS),
+  });
+}
 
 export default function SignInForm() {
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [showWakeHint, setShowWakeHint] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
   const [showForgot, setShowForgot] = useState(false);
-  const wakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => {
-    if (wakeTimer.current) clearTimeout(wakeTimer.current);
-  }, []);
+  const finishWithResponse = async (response: Response) => {
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setError(
+        response.status === 429
+          ? "Too many attempts — please wait 15 minutes and try again."
+          : data.detail || "Invalid ID or password",
+      );
+      return;
+    }
+    const body = (await response.json()) as LoginResponse;
+    storeSession(body.token);
+    window.location.href = portalHomeFor(body.user.role);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginId.trim() || !password) {
+    const id = loginId.trim();
+    if (!id || !password) {
       setError("Enter your login ID and password");
       return;
     }
     setBusy(true);
     setError("");
-    setShowWakeHint(false);
-    // Only show the "waking up" message if the request is still in flight
-    // after a few seconds — most logins (warm backend) never see it.
-    wakeTimer.current = setTimeout(() => setShowWakeHint(true), WAKE_HINT_DELAY_MS);
+    setStatusMessage("");
 
     try {
-      // One request, one wait — no separate pre-flight health check. Render
-      // free tier cold starts take up to ~50s, so the timeout is generous.
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login_id: loginId.trim(), password }),
-        signal: AbortSignal.timeout(60000),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        setError(
-          response.status === 429
-            ? "Too many attempts — please wait 15 minutes and try again."
-            : data.detail || "Invalid ID or password",
-        );
-        return;
-      }
-
-      const body = (await response.json()) as LoginResponse;
-      storeSession(body.token);
-      window.location.href = portalHomeFor(body.user.role);
+      const response = await attemptLogin(id, password);
+      await finishWithResponse(response);
+      return;
     } catch {
-      setError(
-        "Couldn't reach the server. If this is the first sign-in in a while it may be waking up — please try again.",
-      );
+      // Network error or timeout — most likely a cold Render instance (and
+      // possibly a suspended Neon compute underneath it). Don't just fail:
+      // poll /health until the backend is actually reachable, then retry
+      // the login automatically so the user never has to click again.
+    }
+
+    setStatusMessage("Waking up the server — this can take up to a couple of minutes on the first sign-in after a quiet period.");
+    const deadline = Date.now() + WAKE_POLL_MAX_MS;
+    let awake = false;
+    while (Date.now() < deadline) {
+      const health = await publicGet<{ status: string }>("/health", WAKE_POLL_INTERVAL_MS);
+      if (health) {
+        awake = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, WAKE_POLL_INTERVAL_MS));
+    }
+
+    if (!awake) {
+      setStatusMessage("");
+      setError("The server is taking longer than usual to wake up. Please try again in a minute.");
+      setBusy(false);
+      return;
+    }
+
+    setStatusMessage("Server is up — signing you in…");
+    try {
+      const response = await attemptLogin(id, password);
+      await finishWithResponse(response);
+    } catch {
+      setError("Couldn't reach the server. Please try again.");
     } finally {
-      if (wakeTimer.current) clearTimeout(wakeTimer.current);
-      setShowWakeHint(false);
+      setStatusMessage("");
       setBusy(false);
     }
   };
@@ -148,9 +175,10 @@ export default function SignInForm() {
           {error}
         </p>
       )}
-      {busy && showWakeHint && (
-        <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-          Waking up the server — the first sign-in after a quiet period can take up to a minute.
+      {busy && statusMessage && (
+        <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 flex items-center gap-2">
+          <span className="w-3 h-3 border-2 border-amber-300 border-t-amber-700 rounded-full animate-spin flex-shrink-0" />
+          {statusMessage}
         </p>
       )}
 
