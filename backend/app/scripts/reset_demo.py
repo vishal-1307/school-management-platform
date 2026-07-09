@@ -2,9 +2,15 @@
 
 Deletes every data row (students, staff, fees, exams, notices, etc.) but
 keeps the schema/migrations intact, then re-runs ONLY the bootstrap layer
-(school profile placeholder, current academic year, classes, subjects) —
-no demo teachers/students/attendance/etc. You choose the new super-admin
-password interactively so it's never printed or committed anywhere.
+(school profile placeholder, current academic year, classes + sections,
+subject catalog, fee structures) — no demo teachers/students/attendance/
+etc. You choose the new super-admin password interactively so it's never
+printed or committed anywhere.
+
+(seed_production() is bootstrap-only and gates on independent per-item
+existence checks, not on the admin login — so wiping Users here can't
+accidentally re-trigger the full demo dataset, which is a separate
+function gated on "does any Student exist" and is never called from here.)
 
 Run this from your own machine, pointed at the real (production) database
 — see DEMO_CREDENTIALS.md for the exact steps. Requires an explicit --yes
