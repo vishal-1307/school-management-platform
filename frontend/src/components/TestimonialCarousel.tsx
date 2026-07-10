@@ -106,14 +106,20 @@ export default function TestimonialCarousel() {
           {testimonials.map((_, index) => (
             <button
               key={index}
+              type="button"
               onClick={() => goTo(index)}
               aria-label={`Go to testimonial ${index + 1}`}
-              className={`transition-all duration-300 rounded-full ${
-                index === currentIndex
-                  ? "w-8 h-3 bg-primary-600"
-                  : "w-3 h-3 bg-slate-200 hover:bg-primary-300"
-              }`}
-            />
+              aria-current={index === currentIndex}
+              className="p-3 -m-1 flex items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+            >
+              <span
+                className={`block transition-all duration-300 rounded-full ${
+                  index === currentIndex
+                    ? "w-8 h-3 bg-primary-600"
+                    : "w-3 h-3 bg-slate-200 hover:bg-primary-300"
+                }`}
+              />
+            </button>
           ))}
         </div>
       </div>

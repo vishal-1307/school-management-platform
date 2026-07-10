@@ -1,6 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ContactForm from "../components/ContactForm.tsx";
+import { getSchoolInfo } from "../lib/schoolInfo";
+
+const school = await getSchoolInfo();
 ---
 
 <BaseLayout title="Contact Us — Knowledge Development Kindergarten Academy">
@@ -40,7 +43,7 @@ import ContactForm from "../components/ContactForm.tsx";
             </span>
             <div class="space-y-1">
               <h4 class="font-extrabold text-slate-800">Campus Address</h4>
-              <p>Sector 5, Knowledge Campus, Near City Park, New Delhi, 110001</p>
+              <p>{school.address}</p>
             </div>
           </div>
 
@@ -50,8 +53,8 @@ import ContactForm from "../components/ContactForm.tsx";
             </span>
             <div class="space-y-1">
               <h4 class="font-extrabold text-slate-800">Admissions Desk</h4>
-              <p>+91 98765 43210 (Direct Office Helpline)</p>
-              <p>+91 98765 43211 (Principal's Desk)</p>
+              <p>{school.contactPhone} (Direct Office Helpline)</p>
+              <p><a href={`mailto:${school.contactEmail}`} class="hover:text-primary-600 transition-colors">{school.contactEmail}</a></p>
             </div>
           </div>
 

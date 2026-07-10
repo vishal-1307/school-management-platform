@@ -151,8 +151,10 @@ function AttendanceView() {
                   <button
                     key={status}
                     type="button"
+                    aria-label={status[0].toUpperCase() + status.slice(1)}
+                    aria-pressed={marks.get(student.id) === status}
                     onClick={() => setMarks(new Map(marks).set(student.id, status))}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase transition ${
+                    className={`w-11 h-11 flex items-center justify-center rounded-lg text-sm font-bold uppercase transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
                       marks.get(student.id) === status
                         ? STATUS_STYLES[status]
                         : "bg-slate-100 text-slate-500 hover:bg-slate-200"

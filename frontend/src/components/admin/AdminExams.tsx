@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Lock, Megaphone, Unlock, X } from "lucide-react";
 import { authFetch, downloadFile } from "../../lib/api";
 import { getLookups, classNameOf, currentYearOf, subjectNameOf, type Lookups } from "../../lib/lookups";
 import PortalShell from "../portal/PortalShell";
@@ -274,10 +275,11 @@ function CreateExamModal({
             />
             <button
               type="button"
-              className="text-rose-600 font-bold"
+              aria-label="Remove subject row"
+              className="p-2.5 -m-0.5 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
               onClick={() => setSubjects(subjects.filter((_, j) => j !== i))}
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           </div>
         ))}
@@ -359,16 +361,18 @@ function ExamDetailModal({
         <div className="space-y-5">
           <div className="flex flex-wrap gap-2">
             {!exam.is_locked ? (
-              <Button variant="secondary" onClick={() => action("lock")}>
-                🔒 Lock marks
+              <Button variant="secondary" onClick={() => action("lock")} className="inline-flex items-center gap-1.5">
+                <Lock className="w-4 h-4" /> Lock marks
               </Button>
             ) : (
-              <Button variant="secondary" onClick={() => action("unlock")}>
-                🔓 Unlock
+              <Button variant="secondary" onClick={() => action("unlock")} className="inline-flex items-center gap-1.5">
+                <Unlock className="w-4 h-4" /> Unlock
               </Button>
             )}
             {!exam.results_published && (
-              <Button onClick={() => action("publish")}>📣 Publish results</Button>
+              <Button onClick={() => action("publish")} className="inline-flex items-center gap-1.5">
+                <Megaphone className="w-4 h-4" /> Publish results
+              </Button>
             )}
             <Button
               variant="secondary"

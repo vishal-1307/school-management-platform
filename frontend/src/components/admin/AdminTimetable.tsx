@@ -29,6 +29,11 @@ interface StaffLite {
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
 
+function todayName(): string {
+  const jsDay = new Date().getDay();
+  return jsDay === 0 ? DAYS[0] : DAYS[jsDay - 1];
+}
+
 function TimetablePage() {
   const toast = useToast();
   const [lookups, setLookups] = useState<Lookups | null>(null);
@@ -38,6 +43,7 @@ function TimetablePage() {
   const [grid, setGrid] = useState<Map<string, Slot>>(new Map());
   const [loading, setLoading] = useState(false);
   const [editCell, setEditCell] = useState<{ day: string; period: number; slot: Slot | null } | null>(null);
+  const [selectedDay, setSelectedDay] = useState(todayName());
 
   const staffName = (id: number) => {
     const member = staff.find((s) => s.id === id);
@@ -113,59 +119,121 @@ function TimetablePage() {
       {loading ? (
         <Spinner />
       ) : classId !== "" && sectionId !== "" ? (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-3 py-2 text-left text-slate-400 font-bold uppercase">Period</th>
-                {DAYS.map((day) => (
-                  <th key={day} className="px-3 py-2 text-left text-slate-400 font-bold uppercase">
-                    {day.slice(0, 3)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {PERIODS.map((period) => (
-                <tr key={period} className="border-b border-slate-50 last:border-0">
-                  <td className="px-3 py-2 font-extrabold text-slate-500">{period}</td>
-                  {DAYS.map((day) => {
-                    const slot = grid.get(`${day}-${period}`);
-                    return (
-                      <td key={day} className="px-1.5 py-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setEditCell({ day, period, slot: slot ?? null })}
-                          className={`w-full min-h-[52px] rounded-xl px-2 py-1.5 text-left transition border ${
-                            slot
-                              ? slot.is_substitute
-                                ? "bg-amber-50 border-amber-200 hover:border-amber-400"
-                                : "bg-indigo-50 border-indigo-100 hover:border-indigo-300"
-                              : "bg-slate-50 border-dashed border-slate-200 hover:border-indigo-300"
-                          }`}
-                        >
-                          {slot ? (
-                            <>
-                              <p className="font-bold text-slate-800">
-                                {subjectNameOf(lookups, slot.subject_id)}
-                              </p>
-                              <p className="text-slate-500 font-semibold">{staffName(slot.staff_id)}</p>
-                              {slot.is_substitute && (
-                                <p className="text-amber-600 font-bold text-[10px]">SUBSTITUTE</p>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-slate-300 font-bold">+</span>
-                          )}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
+        <>
+          {/* Mobile: one day at a time — every period still shown (tap "+" to add) */}
+          <div className="sm:hidden space-y-3">
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {DAYS.map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setSelectedDay(day)}
+                  className={`shrink-0 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
+                    selectedDay === day ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {day.slice(0, 3)}
+                  {day === todayName() && <span className="ml-1 opacity-70">•</span>}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+            <div className="space-y-2">
+              {PERIODS.map((period) => {
+                const slot = grid.get(`${selectedDay}-${period}`);
+                return (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => setEditCell({ day: selectedDay, period, slot: slot ?? null })}
+                    className={`w-full min-h-[56px] rounded-xl px-4 py-2.5 text-left transition border flex items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
+                      slot
+                        ? slot.is_substitute
+                          ? "bg-amber-50 border-amber-200"
+                          : "bg-indigo-50 border-indigo-100"
+                        : "bg-slate-50 border-dashed border-slate-200"
+                    }`}
+                  >
+                    <span className="w-8 h-8 flex-shrink-0 rounded-lg bg-white/70 text-slate-500 font-extrabold text-xs flex items-center justify-center">
+                      P{period}
+                    </span>
+                    {slot ? (
+                      <span className="flex-1">
+                        <span className="block font-bold text-slate-800 text-sm">
+                          {subjectNameOf(lookups, slot.subject_id)}
+                        </span>
+                        <span className="block text-slate-500 font-semibold text-xs">
+                          {staffName(slot.staff_id)}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="flex-1 text-slate-400 font-bold">Tap to add a period</span>
+                    )}
+                    {slot?.is_substitute && (
+                      <span className="text-amber-700 bg-amber-100 font-bold text-[10px] uppercase px-2 py-0.5 rounded-lg">
+                        Sub
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Desktop: full week grid */}
+          <div className="hidden sm:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="px-3 py-2 text-left text-slate-400 font-bold uppercase">Period</th>
+                  {DAYS.map((day) => (
+                    <th key={day} className="px-3 py-2 text-left text-slate-400 font-bold uppercase">
+                      {day.slice(0, 3)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PERIODS.map((period) => (
+                  <tr key={period} className="border-b border-slate-50 last:border-0">
+                    <td className="px-3 py-2 font-extrabold text-slate-500">{period}</td>
+                    {DAYS.map((day) => {
+                      const slot = grid.get(`${day}-${period}`);
+                      return (
+                        <td key={day} className="px-1.5 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditCell({ day, period, slot: slot ?? null })}
+                            className={`w-full min-h-[52px] rounded-xl px-2 py-1.5 text-left transition border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
+                              slot
+                                ? slot.is_substitute
+                                  ? "bg-amber-50 border-amber-200 hover:border-amber-400"
+                                  : "bg-indigo-50 border-indigo-100 hover:border-indigo-300"
+                                : "bg-slate-50 border-dashed border-slate-200 hover:border-indigo-300"
+                            }`}
+                          >
+                            {slot ? (
+                              <>
+                                <p className="font-bold text-slate-800">
+                                  {subjectNameOf(lookups, slot.subject_id)}
+                                </p>
+                                <p className="text-slate-500 font-semibold">{staffName(slot.staff_id)}</p>
+                                {slot.is_substitute && (
+                                  <p className="text-amber-600 font-bold text-[10px]">SUBSTITUTE</p>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-slate-300 font-bold">+</span>
+                            )}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : (
         <p className="text-sm text-slate-400 font-semibold">Pick a class and section to build its timetable.</p>
       )}

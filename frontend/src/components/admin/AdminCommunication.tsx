@@ -67,7 +67,7 @@ function CommunicationPage() {
   return (
     <>
       <p className="text-sm text-slate-500 font-semibold">
-        Every WhatsApp message the platform sends is logged here (SRS 6.13). "Skipped" means the
+        Every WhatsApp message the platform sends is logged here. "Skipped" means the
         automation ran but WhatsApp credentials aren't configured yet.
       </p>
       <div className="flex gap-3">

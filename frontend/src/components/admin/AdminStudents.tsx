@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { authFetch, downloadFile, openHtmlDocument } from "../../lib/api";
 import {
   getLookups,
@@ -13,6 +14,7 @@ import {
   DataTable,
   Field,
   Modal,
+  rowActionClass,
   Select,
   Spinner,
   TextArea,
@@ -275,16 +277,17 @@ function StudentsPage() {
     { header: "Parent Phone", render: (s) => s.parents[0]?.phone ?? "—" },
     {
       header: "Actions",
+      className: "whitespace-nowrap",
       render: (s) => (
-        <span className="flex gap-2">
-          <button className="text-indigo-600 font-bold hover:underline" onClick={() => openEdit(s)}>
+        <span className="flex flex-wrap gap-0.5 -mx-2">
+          <button className={rowActionClass("indigo")} onClick={() => openEdit(s)}>
             Edit
           </button>
-          <button className="text-slate-500 font-bold hover:underline" onClick={() => openTC(s)}>
+          <button className={rowActionClass("slate")} onClick={() => openTC(s)}>
             TC
           </button>
           <button
-            className="text-slate-500 font-bold hover:underline"
+            className={rowActionClass("slate")}
             onClick={() =>
               openHtmlDocument(`/api/students/${s.id}/bonafide`).catch((error) =>
                 toast(error instanceof Error ? error.message : "Failed", "error"),
@@ -293,11 +296,11 @@ function StudentsPage() {
           >
             Bonafide
           </button>
-          <button className="text-slate-500 font-bold hover:underline" onClick={() => createLogin(s)}>
+          <button className={rowActionClass("slate")} onClick={() => createLogin(s)}>
             Login
           </button>
           {s.is_active && (
-            <button className="text-rose-600 font-bold hover:underline" onClick={() => deactivate(s)}>
+            <button className={rowActionClass("rose")} onClick={() => deactivate(s)}>
               Deactivate
             </button>
           )}
@@ -355,12 +358,12 @@ function StudentsPage() {
         </div>
       </div>
 
-      <DataTable columns={columns} rows={list?.items ?? []} keyFor={(s) => s.id} loading={loading} />
+      <DataTable columns={columns} rows={list?.items ?? []} keyFor={(s) => s.id} loading={loading} stickyLast />
 
       {list && list.total_pages > 1 && (
-        <div className="flex items-center gap-3 justify-end text-sm font-bold text-slate-600">
+        <div className="flex flex-wrap items-center gap-3 justify-end text-sm font-bold text-slate-600">
           <Button variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            ← Prev
+            <ArrowLeft className="w-4 h-4 inline -mt-0.5 mr-1" /> Prev
           </Button>
           Page {list.page} of {list.total_pages} ({list.total} students)
           <Button
@@ -368,7 +371,7 @@ function StudentsPage() {
             disabled={page >= list.total_pages}
             onClick={() => setPage(page + 1)}
           >
-            Next →
+            Next <ArrowRight className="w-4 h-4 inline -mt-0.5 ml-1" />
           </Button>
         </div>
       )}
@@ -442,7 +445,7 @@ function StudentsPage() {
               <TextInput value={form.parent_name} onChange={(e) => setForm({ ...form, parent_name: e.target.value })} />
             </Field>
             <Field label="Parent phone (WhatsApp)">
-              <TextInput value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} />
+              <TextInput type="tel" value={form.parent_phone} onChange={(e) => setForm({ ...form, parent_phone: e.target.value })} />
             </Field>
             <Field label="Relation">
               <Select

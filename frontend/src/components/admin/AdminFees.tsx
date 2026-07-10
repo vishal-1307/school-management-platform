@@ -594,7 +594,7 @@ function DefaultersTab({ lookups }: { lookups: Lookups }) {
         rows={defaulters}
         keyFor={(d) => `${d.student_id}-${d.fee_head}-${d.due_date}`}
         loading={loading}
-        empty="No defaulters — everyone has paid 🎉"
+        empty="No defaulters — everyone has paid."
       />
     </>
   );

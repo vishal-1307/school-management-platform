@@ -11,7 +11,7 @@ interface FormData {
 const initialFormData: FormData = { name: "", phone: "", email: "", message: "" };
 
 const inputClass =
-  "w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-indigo-600 focus:border-indigo-600 transition";
+  "w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:bg-white focus:outline-indigo-600 focus:border-indigo-600 transition";
 
 export default function ContactForm() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -35,7 +35,8 @@ export default function ContactForm() {
       setStatus("success");
       setFormData(initialFormData);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Something went wrong");
+      const reason = error instanceof Error ? error.message : "Something went wrong.";
+      setErrorMessage(`${reason} Or call the office directly.`);
       setStatus("error");
     }
   };
@@ -113,7 +114,7 @@ export default function ContactForm() {
 
       {status === "error" && (
         <p className="text-red-600 text-sm font-semibold bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-          Could not send your message ({errorMessage}). Please try again, or call the office directly.
+          {errorMessage}
         </p>
       )}
 

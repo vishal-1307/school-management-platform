@@ -4,8 +4,9 @@
  * a single import.
  */
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { X } from "lucide-react";
 
 /* ── StatCard ─────────────────────────────────────────────────────── */
 
@@ -51,51 +52,98 @@ export function DataTable<T>({
   keyFor,
   empty = "No records found.",
   loading = false,
+  stickyLast = false,
 }: {
   columns: Column<T>[];
   rows: T[];
   keyFor: (row: T) => string | number;
   empty?: string;
   loading?: boolean;
+  /** Pin the last column (usually row actions) to the right edge, with a
+   * shadow, so it's reachable without losing your place when a wide table
+   * scrolls horizontally on a small screen. */
+  stickyLast?: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateShadows = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    updateShadows();
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateShadows);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateShadows, rows.length, columns.length]);
+
+  const lastIndex = columns.length - 1;
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-            {columns.map((col) => (
-              <th key={col.header} className={`px-4 py-3 ${col.className ?? ""}`}>
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr>
-              <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400 font-semibold">
-                Loading…
-              </td>
+    <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm">
+      {canScrollLeft && (
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 z-10 bg-gradient-to-r from-white to-transparent rounded-l-2xl" />
+      )}
+      {canScrollRight && (
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 z-10 bg-gradient-to-l from-white to-transparent rounded-r-2xl" />
+      )}
+      <div ref={scrollRef} onScroll={updateShadows} className="overflow-x-auto rounded-2xl">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+              {columns.map((col, i) => (
+                <th
+                  key={col.header}
+                  className={`px-4 py-3 ${col.className ?? ""} ${
+                    stickyLast && i === lastIndex ? "sticky right-0 bg-white" : ""
+                  }`}
+                >
+                  {col.header}
+                </th>
+              ))}
             </tr>
-          ) : rows.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400 font-semibold">
-                {empty}
-              </td>
-            </tr>
-          ) : (
-            rows.map((row) => (
-              <tr key={keyFor(row)} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
-                {columns.map((col) => (
-                  <td key={col.header} className={`px-4 py-3 font-semibold text-slate-700 ${col.className ?? ""}`}>
-                    {col.render(row)}
-                  </td>
-                ))}
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400 font-semibold">
+                  Loading…
+                </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400 font-semibold">
+                  {empty}
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <tr key={keyFor(row)} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 group/row">
+                  {columns.map((col, i) => (
+                    <td
+                      key={col.header}
+                      className={`px-4 py-3 font-semibold text-slate-700 ${col.className ?? ""} ${
+                        stickyLast && i === lastIndex
+                          ? "sticky right-0 bg-white group-hover/row:bg-slate-50/60"
+                          : ""
+                      }`}
+                    >
+                      {col.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -128,9 +176,9 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 font-bold"
+            className="p-3 -m-1.5 rounded-xl hover:bg-slate-100 text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
-            ✕
+            <X className="w-5 h-5" />
           </button>
         </div>
         {children}
@@ -142,7 +190,7 @@ export function Modal({
 /* ── Form fields ──────────────────────────────────────────────────── */
 
 export const inputClass =
-  "w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:bg-white focus:outline-indigo-600 focus:border-indigo-600 transition";
+  "w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-semibold focus:bg-white focus:outline-indigo-600 focus:border-indigo-600 transition";
 
 export function Field({
   label,
@@ -191,7 +239,7 @@ export function Button({
   return (
     <button
       {...props}
-      className={`px-4 py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50 ${variants[variant]} ${props.className ?? ""}`}
+      className={`px-4 py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${variants[variant]} ${props.className ?? ""}`}
     >
       {children}
     </button>
@@ -266,6 +314,20 @@ export function formatDate(value: string | null | undefined): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" });
+}
+
+/**
+ * Classes for a compact text-link "action" button inside a table row
+ * (Edit/Delete/etc.) — padded to a real touch target (44px tall) and with
+ * a visible focus ring, instead of a bare underlined word.
+ */
+export function rowActionClass(tone: "indigo" | "slate" | "rose" = "indigo"): string {
+  const tones: Record<string, string> = {
+    indigo: "text-indigo-600 hover:bg-indigo-50 focus-visible:outline-indigo-600",
+    slate: "text-slate-500 hover:bg-slate-100 focus-visible:outline-slate-500",
+    rose: "text-rose-600 hover:bg-rose-50 focus-visible:outline-rose-600",
+  };
+  return `px-2 py-2.5 rounded-lg font-bold text-sm hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${tones[tone]}`;
 }
 
 /** Debounce a changing value (search boxes). */

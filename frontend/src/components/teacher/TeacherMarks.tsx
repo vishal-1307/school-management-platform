@@ -65,7 +65,7 @@ function MarksView() {
   return (
     <>
       <p className="text-sm text-slate-500 font-semibold">
-        You can enter marks only for your own subjects and classes (SRS 7.5). Once the admin locks
+        You can enter marks only for your own subjects and classes. Once the admin locks
         the exam, entries are frozen.
       </p>
       <div className="flex flex-wrap gap-3">

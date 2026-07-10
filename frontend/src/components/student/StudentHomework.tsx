@@ -51,7 +51,7 @@ function HomeworkView() {
     <>
       <div className="space-y-3">
         {homework.length === 0 && (
-          <p className="text-sm text-slate-400 font-semibold">No homework assigned yet. 🎉</p>
+          <p className="text-sm text-slate-400 font-semibold">No homework assigned yet.</p>
         )}
         {homework.map((hw) => {
           const overdue = new Date(hw.due_date).getTime() < now;

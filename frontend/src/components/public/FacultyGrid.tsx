@@ -111,17 +111,17 @@ export default function FacultyGrid() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
               {dept.teachers.map((teacher) => (
                 <div
                   key={teacher.name}
-                  className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm text-center hover:shadow-md transition duration-300 space-y-4"
+                  className="bg-white p-3 sm:p-5 rounded-2xl border border-slate-100 shadow-sm text-center hover:shadow-md transition duration-300 space-y-2 sm:space-y-4"
                 >
                   <img
                     src={teacher.image}
                     alt={teacher.name}
                     loading="lazy"
-                    className="w-32 h-32 rounded-full object-cover mx-auto shadow border border-slate-100 aspect-square"
+                    className="w-20 h-20 sm:w-32 sm:h-32 rounded-full object-cover mx-auto shadow border border-slate-100 aspect-square"
                   />
                   <div className="space-y-1">
                     <h3 className="font-bold text-slate-800 leading-tight">{teacher.name}</h3>

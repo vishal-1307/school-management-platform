@@ -59,10 +59,10 @@ function ProfileView() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Phone">
-          <TextInput value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <TextInput type="tel" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </Field>
         <Field label="Email">
-          <TextInput value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <TextInput type="email" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </Field>
         <Field label="Qualification">
           <TextInput

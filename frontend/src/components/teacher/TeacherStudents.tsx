@@ -59,7 +59,7 @@ function StudentsView() {
   return (
     <>
       <p className="text-sm text-slate-500 font-semibold">
-        Read-only view of students in your classes (SRS 7.6) — no fee or other personal data.
+        Read-only view of students in your classes — no fee or other personal data.
       </p>
       <Field label="Class">
         <Select value={pair} onChange={(e) => setPair(e.target.value)} className="max-w-[200px]">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { publicGet } from "../../lib/api";
 
 interface DisplayAlbum {
@@ -111,10 +112,10 @@ export default function GalleryGrid() {
               <button
                 type="button"
                 onClick={() => setOpenAlbum(null)}
-                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 font-bold"
+                className="p-3 -m-1 rounded-xl hover:bg-slate-100 text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                 aria-label="Close album"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">

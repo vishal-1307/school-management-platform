@@ -77,7 +77,7 @@ function HomeworkPage() {
   return (
     <>
       <p className="text-sm text-slate-500 font-semibold">
-        Oversight of everything teachers have assigned (SRS 6.10). Teachers post homework from their
+        Oversight of everything teachers have assigned. Teachers post homework from their
         own portal.
       </p>
       <div className="flex gap-3">

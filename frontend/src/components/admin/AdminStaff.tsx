@@ -14,6 +14,7 @@ import {
   DataTable,
   Field,
   Modal,
+  rowActionClass,
   Select,
   Spinner,
   TextInput,
@@ -166,16 +167,14 @@ function StaffPage() {
     { header: "Assignments", render: (s) => s.subject_assignments.length },
     {
       header: "Actions",
+      className: "whitespace-nowrap",
       render: (s) => (
-        <span className="flex gap-2">
-          <button
-            className="text-indigo-600 font-bold hover:underline"
-            onClick={() => setDetail(s)}
-          >
+        <span className="flex flex-wrap gap-0.5 -mx-2">
+          <button className={rowActionClass()} onClick={() => setDetail(s)}>
             Subjects
           </button>
           <button
-            className="text-indigo-600 font-bold hover:underline"
+            className={rowActionClass()}
             onClick={() => {
               setForm({
                 first_name: s.first_name,
@@ -190,11 +189,11 @@ function StaffPage() {
           >
             Edit
           </button>
-          <button className="text-slate-500 font-bold hover:underline" onClick={() => createLogin(s)}>
+          <button className={rowActionClass("slate")} onClick={() => createLogin(s)}>
             Login
           </button>
           {s.is_active && (
-            <button className="text-rose-600 font-bold hover:underline" onClick={() => deactivate(s)}>
+            <button className={rowActionClass("rose")} onClick={() => deactivate(s)}>
               Deactivate
             </button>
           )}
@@ -216,7 +215,7 @@ function StaffPage() {
         </Button>
       </div>
 
-      <DataTable columns={columns} rows={staff} keyFor={(s) => s.id} loading={loading} />
+      <DataTable columns={columns} rows={staff} keyFor={(s) => s.id} loading={loading} stickyLast />
 
       <Modal
         title={editing === "new" ? "Add Staff Member" : "Edit Staff Member"}
@@ -231,10 +230,10 @@ function StaffPage() {
             <TextInput value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
           </Field>
           <Field label="Phone" required>
-            <TextInput value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <TextInput type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </Field>
           <Field label="Email">
-            <TextInput value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <TextInput type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </Field>
           <Field label="Qualification">
             <TextInput value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} />
@@ -340,7 +339,7 @@ function AssignmentsModal({
               {subjectNameOf(lookups, a.subject_id)} — {classNameOf(lookups, a.class_id)}{" "}
               {sectionNameOf(lookups, a.section_id)}
             </span>
-            <button className="text-rose-600 font-bold hover:underline" onClick={() => remove(a)}>
+            <button className={rowActionClass("rose")} onClick={() => remove(a)}>
               Remove
             </button>
           </li>

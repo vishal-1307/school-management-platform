@@ -170,7 +170,7 @@ function ProfileMenu({ me, portal }: { me: Me; portal: "admin" | "teacher" | "st
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2.5 pl-1 pr-2.5 py-1 rounded-full hover:bg-slate-100 transition"
+        className="flex items-center gap-2.5 pl-1 pr-2.5 py-2 rounded-full hover:bg-slate-100 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
       >
         <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-extrabold flex-shrink-0">
           {initialsOf(me.display_name || me.login_id)}
@@ -194,14 +194,14 @@ function ProfileMenu({ me, portal }: { me: Me; portal: "admin" | "teacher" | "st
           </div>
           <a
             href={PROFILE_HREF[portal]}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50"
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600"
           >
             <KeyRound className="w-4 h-4" /> Change Password
           </a>
           <button
             type="button"
             onClick={() => signOut()}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50"
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-rose-600"
           >
             <LogOut className="w-4 h-4" /> Sign Out
           </button>
@@ -294,7 +294,7 @@ export default function PortalShell({
             </a>
             <button
               type="button"
-              className="lg:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400"
+              className="lg:hidden p-3 -m-1 rounded-lg hover:bg-slate-800 text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
               onClick={() => setMenuOpen(false)}
               aria-label="Close menu"
             >
@@ -316,7 +316,8 @@ export default function PortalShell({
                     <a
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition ${
+                      onClick={() => setMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
                         active
                           ? "bg-indigo-600 text-white"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -334,7 +335,7 @@ export default function PortalShell({
             <button
               type="button"
               onClick={() => signOut()}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-300 hover:bg-rose-950 hover:text-rose-300 transition"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-300 hover:bg-rose-950 hover:text-rose-300 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
             >
               <LogOut className="w-[18px] h-[18px]" /> Sign out
             </button>
@@ -353,7 +354,7 @@ export default function PortalShell({
           <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-100 px-4 lg:px-8 py-3 flex items-center gap-4">
             <button
               type="button"
-              className="lg:hidden p-2 rounded-xl hover:bg-slate-100 text-slate-600"
+              className="lg:hidden p-3 -m-1 rounded-xl hover:bg-slate-100 text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
             >

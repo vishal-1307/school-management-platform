@@ -11,6 +11,30 @@ export const API_URL: string = (
 ).replace(/\/+$/, "");
 
 const DEFAULT_TIMEOUT_MS = 4500;
+const GENERIC_CONNECTIVITY_MESSAGE = "Couldn't reach the server. Please check your connection and try again.";
+const GENERIC_SERVER_ERROR_MESSAGE = "Something went wrong on our end. Please try again in a moment.";
+
+/**
+ * Turn a failed response into a message that's safe to show a user. 4xx
+ * `detail` strings are intentional, backend-authored, user-facing text (e.g.
+ * validation errors, "already submitted") and are trusted as-is. 5xx bodies
+ * can carry exception/traceback text, so those always get a generic message
+ * — the real detail still reaches the console for debugging.
+ */
+async function readErrorMessage(response: Response): Promise<string> {
+  let detail: string | null = null;
+  try {
+    const data = await response.json();
+    if (typeof data.detail === "string") detail = data.detail;
+  } catch {
+    /* non-JSON body — keep null */
+  }
+  if (response.status >= 500) {
+    if (detail) console.error(`[api] ${response.status} ${response.url}: ${detail}`);
+    return GENERIC_SERVER_ERROR_MESSAGE;
+  }
+  return detail ?? `Request failed (${response.status})`;
+}
 
 /** GET a public endpoint. Returns null on any failure (caller keeps fallback). */
 export async function publicGet<T>(
@@ -31,22 +55,19 @@ export async function publicGet<T>(
 
 /** POST to a public endpoint (forms). Throws with a readable message on failure. */
 export async function publicPost<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) {
-    let detail = `Request failed (${response.status})`;
-    try {
-      const data = await response.json();
-      if (typeof data.detail === "string") detail = data.detail;
-    } catch {
-      /* keep default */
-    }
-    throw new Error(detail);
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (error) {
+    console.error(`[api] network error POSTing ${path}:`, error);
+    throw new Error(GENERIC_CONNECTIVITY_MESSAGE);
   }
+  if (!response.ok) throw new Error(await readErrorMessage(response));
   return (await response.json()) as T;
 }
 
@@ -66,25 +87,24 @@ export async function authFetch<T>(
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const token = await tokenGetter();
-  const response = await fetch(`${API_URL}${path}`, {
-    method: options.method ?? "GET",
-    headers: {
-      Accept: "application/json",
-      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-    signal: AbortSignal.timeout(30000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method: options.method ?? "GET",
+      headers: {
+        Accept: "application/json",
+        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch (error) {
+    console.error(`[api] network error on ${path}:`, error);
+    throw new Error(GENERIC_CONNECTIVITY_MESSAGE);
+  }
   if (!response.ok) {
-    let detail = `Request failed (${response.status})`;
-    try {
-      const data = await response.json();
-      if (typeof data.detail === "string") detail = data.detail;
-    } catch {
-      /* keep default */
-    }
-    const error = new Error(detail) as Error & { status?: number };
+    const error = new Error(await readErrorMessage(response)) as Error & { status?: number };
     error.status = response.status;
     throw error;
   }

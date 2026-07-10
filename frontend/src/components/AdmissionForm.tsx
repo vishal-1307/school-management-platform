@@ -307,7 +307,7 @@ function InputField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full px-4 py-3 rounded-xl border text-sm transition-all duration-200 bg-white
+        className={`w-full px-4 py-3 rounded-xl border text-base sm:text-sm transition-all duration-200 bg-white
           ${error
             ? "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200"
             : "border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
@@ -344,7 +344,7 @@ function SelectField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full px-4 py-3 rounded-xl border text-sm transition-all duration-200 bg-white appearance-none
+        className={`w-full px-4 py-3 rounded-xl border text-base sm:text-sm transition-all duration-200 bg-white appearance-none
           ${error
             ? "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200"
             : "border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
@@ -388,7 +388,7 @@ function TextareaField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className={`w-full px-4 py-3 rounded-xl border text-sm transition-all duration-200 bg-white resize-none
+        className={`w-full px-4 py-3 rounded-xl border text-base sm:text-sm transition-all duration-200 bg-white resize-none
           ${error
             ? "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200"
             : "border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200"

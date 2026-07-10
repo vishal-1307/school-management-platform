@@ -100,12 +100,14 @@ function SettingsPage() {
           </Field>
           <Field label="Contact email">
             <TextInput
+              type="email"
               value={school.contact_email ?? ""}
               onChange={(e) => setSchool({ ...school, contact_email: e.target.value })}
             />
           </Field>
           <Field label="Contact phone">
             <TextInput
+              type="tel"
               value={school.contact_phone ?? ""}
               onChange={(e) => setSchool({ ...school, contact_phone: e.target.value })}
             />
@@ -133,7 +135,7 @@ function SettingsPage() {
 
       {/* Automation toggles */}
       <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
-        <h2 className="font-extrabold text-slate-800">Automation (SRS 6.14)</h2>
+        <h2 className="font-extrabold text-slate-800">Automation</h2>
         <p className="text-xs text-slate-500 font-semibold">
           These control the WhatsApp automations. Until WhatsApp credentials are configured, actions
           run in "skipped" mode and appear in the Communication Log without sending anything.
@@ -184,7 +186,7 @@ function AcademicSetup({ lookups, onChanged }: { lookups: Lookups; onChanged: ()
 
   return (
     <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-6">
-      <h2 className="font-extrabold text-slate-800">Academic Setup (SRS 6.16)</h2>
+      <h2 className="font-extrabold text-slate-800">Academic Setup</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-3">

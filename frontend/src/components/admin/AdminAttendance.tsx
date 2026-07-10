@@ -58,8 +58,10 @@ function StatusPicker({
         <button
           key={status}
           type="button"
+          aria-label={status[0].toUpperCase() + status.slice(1)}
+          aria-pressed={value === status}
           onClick={() => onChange(status)}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase transition ${
+          className={`w-11 h-11 flex items-center justify-center rounded-lg text-sm font-bold uppercase transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
             value === status ? STATUS_STYLES[status] : "bg-slate-100 text-slate-500 hover:bg-slate-200"
           }`}
         >
@@ -225,7 +227,8 @@ function StudentTab({ lookups }: { lookups: Lookups }) {
                 )}
                 {record && (
                   <button
-                    className="text-xs font-bold text-slate-400 hover:text-indigo-600"
+                    type="button"
+                    className="px-2 py-2.5 -mx-1 rounded-lg text-xs font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                     onClick={() => setOverride(record)}
                   >
                     Override

@@ -38,8 +38,9 @@ export default function MobileMenu({ navLinks }: MobileMenuProps) {
     <>
       {/* Hamburger Button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-primary-50 hover:bg-primary-100 transition-colors z-50"
+        className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-primary-50 hover:bg-primary-100 transition-colors z-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
         aria-label={isOpen ? "Close menu" : "Open menu"}
         aria-expanded={isOpen}
       >

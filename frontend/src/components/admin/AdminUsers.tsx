@@ -6,6 +6,7 @@ import {
   DataTable,
   Field,
   Modal,
+  rowActionClass,
   Select,
   TextInput,
   formatDate,
@@ -109,17 +110,21 @@ function UsersPage() {
     { header: "Created", render: (u) => formatDate(u.created_at) },
     {
       header: "Actions",
+      className: "whitespace-nowrap",
       render: (u) => (
-        <span className="flex gap-2">
-          <button className="text-indigo-600 font-bold hover:underline" onClick={() => resetPassword(u)}>
+        <span className="flex flex-wrap gap-0.5 -mx-2">
+          <button className={rowActionClass()} onClick={() => resetPassword(u)}>
             Reset PW
           </button>
           {u.is_active ? (
-            <button className="text-rose-600 font-bold hover:underline" onClick={() => deactivate(u)}>
+            <button className={rowActionClass("rose")} onClick={() => deactivate(u)}>
               Deactivate
             </button>
           ) : (
-            <button className="text-emerald-600 font-bold hover:underline" onClick={() => reactivate(u)}>
+            <button
+              className="px-2 py-2.5 rounded-lg font-bold text-sm text-emerald-600 hover:underline hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              onClick={() => reactivate(u)}
+            >
               Reactivate
             </button>
           )}
@@ -155,7 +160,7 @@ function UsersPage() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
               tab === key ? "bg-indigo-600 text-white" : "bg-white text-slate-600 border border-slate-200"
             }`}
           >
@@ -170,7 +175,7 @@ function UsersPage() {
       </div>
 
       {tab === "users" ? (
-        <DataTable columns={userColumns} rows={users} keyFor={(u) => u.id} loading={loading} />
+        <DataTable columns={userColumns} rows={users} keyFor={(u) => u.id} loading={loading} stickyLast />
       ) : (
         <DataTable
           columns={auditColumns}
@@ -282,10 +287,10 @@ function CreateUserModal({
           />
         </Field>
         <Field label="Email">
-          <TextInput value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <TextInput type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </Field>
         <Field label="Phone">
-          <TextInput value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <TextInput type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </Field>
         <Field label="Link to staff ID / student ID">
           <div className="flex gap-2">

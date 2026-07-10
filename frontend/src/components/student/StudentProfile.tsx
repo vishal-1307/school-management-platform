@@ -63,7 +63,7 @@ function ProfileView() {
       </dl>
       <p className="text-xs text-slate-400 font-semibold">
         Spot a mistake? Official records can only be corrected by the school office — contact them
-        with the right details (SRS 8.8).
+        with the right details.
       </p>
     </section>
     <ChangePasswordForm />
