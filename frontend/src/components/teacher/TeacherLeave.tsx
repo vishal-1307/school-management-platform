@@ -67,8 +67,8 @@ function LeaveView() {
   };
 
   const columns: Column<Leave>[] = [
-    { header: "From", render: (l) => formatDate(l.start_date) },
-    { header: "To", render: (l) => formatDate(l.end_date) },
+    { header: "From", className: "whitespace-nowrap", render: (l) => formatDate(l.start_date) },
+    { header: "To", className: "whitespace-nowrap", render: (l) => formatDate(l.end_date) },
     { header: "Reason", render: (l) => l.reason, className: "max-w-[280px]" },
     {
       header: "Status",

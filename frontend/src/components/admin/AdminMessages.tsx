@@ -56,8 +56,13 @@ function MessagesPage() {
 
   return (
     <>
-      <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
-        <input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} />
+      <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 px-2 py-2 -mx-2 rounded-xl hover:bg-slate-50 cursor-pointer">
+        <input
+          type="checkbox"
+          className="w-5 h-5 accent-indigo-600"
+          checked={unreadOnly}
+          onChange={(e) => setUnreadOnly(e.target.checked)}
+        />
         Unread only
       </label>
       <div className="space-y-3">

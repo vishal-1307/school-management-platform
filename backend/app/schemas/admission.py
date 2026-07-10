@@ -46,3 +46,13 @@ class EnquiryResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class EnquiryListResponse(BaseModel):
+    """Paginated list of admission enquiries."""
+
+    items: list[EnquiryResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

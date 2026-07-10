@@ -141,10 +141,13 @@ function SettingsPage() {
           run in "skipped" mode and appear in the Communication Log without sending anything.
         </p>
         {(Object.keys(AUTOMATION_LABELS) as (keyof Automation)[]).map((key) => (
-          <label key={key} className="flex items-start gap-3 cursor-pointer">
+          <label
+            key={key}
+            className="flex items-start gap-3 cursor-pointer -mx-2 px-2 py-2 rounded-xl hover:bg-slate-50"
+          >
             <input
               type="checkbox"
-              className="mt-1"
+              className="mt-1 w-5 h-5 flex-shrink-0 accent-indigo-600"
               checked={automation[key]}
               onChange={() => toggleAutomation(key)}
             />

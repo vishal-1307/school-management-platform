@@ -86,7 +86,7 @@ function ExamsPage() {
     { header: "Exam", render: (e) => e.name },
     { header: "Type", render: (e) => e.exam_type },
     { header: "Class", render: (e) => classNameOf(lookups, e.class_id) },
-    { header: "Dates", render: (e) => `${formatDate(e.start_date)} – ${formatDate(e.end_date)}` },
+    { header: "Dates", className: "whitespace-nowrap", render: (e) => `${formatDate(e.start_date)} – ${formatDate(e.end_date)}` },
     { header: "Subjects", render: (e) => e.subjects_count },
     {
       header: "Status",

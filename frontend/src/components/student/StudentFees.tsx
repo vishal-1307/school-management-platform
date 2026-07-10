@@ -175,14 +175,16 @@ function FeesView() {
             <p className="px-4 py-6 text-sm text-slate-400 font-semibold">No payments yet.</p>
           )}
           {data.transactions.map((txn) => (
-            <div key={txn.id} className="flex items-center gap-4 px-4 py-2.5 text-sm font-semibold">
-              <span className="flex-1 text-slate-700">{txn.receipt_number}</span>
+            <div key={txn.id} className="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm font-semibold">
+              <span className="text-slate-700 font-mono text-xs sm:text-sm">{txn.receipt_number}</span>
+              <span className="font-extrabold text-slate-800 ml-auto sm:ml-0">{rupees(txn.amount_paid)}</span>
               <span className="text-slate-400 text-xs uppercase">{txn.payment_mode}</span>
-              <span className="text-slate-400 text-xs">{txn.paid_at ? formatDate(txn.paid_at) : ""}</span>
-              <span className="font-extrabold text-slate-800">{rupees(txn.amount_paid)}</span>
+              <span className="text-slate-400 text-xs whitespace-nowrap">
+                {txn.paid_at ? formatDate(txn.paid_at) : ""}
+              </span>
               <button
                 type="button"
-                className="px-2 py-2.5 -mx-2 rounded-lg text-indigo-600 font-bold hover:underline hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="px-2 py-2.5 -mx-2 ml-auto rounded-lg text-indigo-600 font-bold hover:underline hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                 onClick={() =>
                   openHtmlDocument(`/api/fees/receipts/${txn.id}/html`).catch((e) =>
                     toast(e instanceof Error ? e.message : "Failed", "error"),

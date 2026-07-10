@@ -302,7 +302,7 @@ function AchievementsTab() {
   const columns: Column<Achievement>[] = [
     { header: "Title", render: (a) => a.title },
     { header: "Category", render: (a) => a.category ?? "—" },
-    { header: "Date", render: (a) => formatDate(a.date) },
+    { header: "Date", className: "whitespace-nowrap", render: (a) => formatDate(a.date) },
     {
       header: "Actions",
       render: (a) => (
@@ -393,7 +393,7 @@ function NewsTab() {
 
   const columns: Column<NewsEvent>[] = [
     { header: "Title", render: (n) => n.title },
-    { header: "Event date", render: (n) => formatDate(n.event_date) },
+    { header: "Event date", className: "whitespace-nowrap", render: (n) => formatDate(n.event_date) },
     { header: "Published", render: (n) => (n.is_published ? "Yes" : "No") },
     {
       header: "Actions",

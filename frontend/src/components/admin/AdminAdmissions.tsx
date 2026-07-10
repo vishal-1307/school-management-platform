@@ -27,9 +27,18 @@ const PIPELINE = [
   { status: "not_interested", label: "Not Interested", tone: "bg-slate-50 border-slate-100" },
 ];
 
+interface EnquiryList {
+  items: Enquiry[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 function AdmissionsPage() {
   const toast = useToast();
   const [enquiries, setEnquiries] = useState<Enquiry[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<Enquiry | null>(null);
   const [status, setStatus] = useState("new");
   const [notes, setNotes] = useState("");
@@ -38,10 +47,13 @@ function AdmissionsPage() {
   const load = useCallback(async () => {
     try {
       // Backend caps page_size at 100; fetch first 100 (newest first).
-      setEnquiries(await authFetch<Enquiry[]>("/api/admissions/?page_size=100"));
+      const list = await authFetch<EnquiryList>("/api/admissions/?page_size=100");
+      setEnquiries(list.items);
+      setTotal(list.total);
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed to load enquiries", "error");
       setEnquiries([]);
+      setTotal(0);
     }
   }, [toast]);
 
@@ -107,6 +119,12 @@ function AdmissionsPage() {
 
   return (
     <>
+      {total > enquiries.length && (
+        <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5">
+          Showing the {enquiries.length} most recent of {total} enquiries. Filter or resolve older
+          ones to see more.
+        </p>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 items-start">
         {PIPELINE.map((column) => {
           const cards = enquiries.filter((e) => e.status === column.status);

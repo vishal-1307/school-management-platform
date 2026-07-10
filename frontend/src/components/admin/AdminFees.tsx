@@ -177,7 +177,7 @@ function StructuresTab({ lookups }: { lookups: Lookups }) {
     { header: "Fee Head", render: (s) => s.fee_head },
     { header: "Term", render: (s) => s.term ?? "—" },
     { header: "Amount", render: (s) => rupees(s.amount) },
-    { header: "Due Date", render: (s) => formatDate(s.due_date) },
+    { header: "Due Date", className: "whitespace-nowrap", render: (s) => formatDate(s.due_date) },
     {
       header: "Actions",
       render: (s) => (
@@ -307,7 +307,7 @@ function PaymentsTab({ lookups }: { lookups: Lookups }) {
     },
     { header: "Amount", render: (t) => rupees(t.amount_paid) },
     { header: "Mode", render: (t) => t.payment_mode.toUpperCase() },
-    { header: "Date", render: (t) => formatDate(t.paid_at) },
+    { header: "Date", className: "whitespace-nowrap", render: (t) => formatDate(t.paid_at) },
     {
       header: "Receipt",
       render: (t) => (
@@ -536,7 +536,7 @@ function DefaultersTab({ lookups }: { lookups: Lookups }) {
       header: "Balance",
       render: (d) => <span className="text-rose-600 font-extrabold">{rupees(d.balance)}</span>,
     },
-    { header: "Due Date", render: (d) => formatDate(d.due_date) },
+    { header: "Due Date", className: "whitespace-nowrap", render: (d) => formatDate(d.due_date) },
   ];
 
   const totalOutstanding = defaulters.reduce((sum, d) => sum + d.balance, 0);

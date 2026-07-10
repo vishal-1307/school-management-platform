@@ -132,7 +132,10 @@ function DashboardBody() {
             <span className="relative">
               <Inbox className="w-4 h-4 text-slate-300" />
               {data.new_enquiries > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full" />
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full"
+                />
               )}
             </span>
           </div>

@@ -67,9 +67,14 @@ function DashboardBody() {
     <>
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <RingGauge percentage={data.attendance_percentage} size={72} strokeWidth={8} />
-          <div>
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
+          <span className="sm:hidden">
+            <RingGauge percentage={data.attendance_percentage} size={56} strokeWidth={7} />
+          </span>
+          <span className="hidden sm:block">
+            <RingGauge percentage={data.attendance_percentage} size={72} strokeWidth={8} />
+          </span>
+          <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Attendance</p>
             <p className="text-xs text-slate-500 font-semibold mt-1">
               {data.attendance_percentage === null ? "No records yet" : "This year"}

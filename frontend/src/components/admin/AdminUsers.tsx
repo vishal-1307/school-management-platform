@@ -107,7 +107,7 @@ function UsersPage() {
       header: "Active",
       render: (u) => (u.is_active ? "Yes" : <span className="text-rose-600 font-bold">No</span>),
     },
-    { header: "Created", render: (u) => formatDate(u.created_at) },
+    { header: "Created", className: "whitespace-nowrap", render: (u) => formatDate(u.created_at) },
     {
       header: "Actions",
       className: "whitespace-nowrap",

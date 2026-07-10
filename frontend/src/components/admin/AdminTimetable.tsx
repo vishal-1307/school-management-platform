@@ -351,9 +351,10 @@ function SlotModal({
             ))}
           </Select>
         </Field>
-        <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+        <label className="flex items-center gap-2 text-sm font-bold text-slate-600 -mx-2 px-2 py-2 rounded-xl hover:bg-slate-50 cursor-pointer">
           <input
             type="checkbox"
+            className="w-5 h-5 accent-indigo-600"
             checked={isSubstitute}
             onChange={(e) => setIsSubstitute(e.target.checked)}
           />

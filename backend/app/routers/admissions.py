@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
-from typing import List
+import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.auth import require_role
 from app.models.admission import AdmissionEnquiry, EnquiryStatus
 from app.models.user import User, UserRole
-from app.schemas.admission import EnquiryResponse, EnquirySubmit, EnquiryUpdate
+from app.schemas.admission import (
+    EnquiryListResponse,
+    EnquiryResponse,
+    EnquirySubmit,
+    EnquiryUpdate,
+)
 from app.schemas.common import MessageResponse
 from app.services.ratelimit import enforce_public_form_limit
 
@@ -43,23 +48,36 @@ async def submit_enquiry(
     return EnquiryResponse.model_validate(enquiry)
 
 
-@router.get("/", response_model=List[EnquiryResponse])
+@router.get("/", response_model=EnquiryListResponse)
 async def list_enquiries(
     status_filter: str | None = Query(None, alias="status"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(*ADMIN_ROLES)),
-) -> List[EnquiryResponse]:
+) -> EnquiryListResponse:
     """List all admission enquiries with optional status filter."""
     query = select(AdmissionEnquiry)
+    count_query = select(func.count(AdmissionEnquiry.id))
     if status_filter:
-        query = query.where(AdmissionEnquiry.status == EnquiryStatus(status_filter))
+        f = AdmissionEnquiry.status == EnquiryStatus(status_filter)
+        query = query.where(f)
+        count_query = count_query.where(f)
+
+    total = (await db.execute(count_query)).scalar() or 0
+    total_pages = math.ceil(total / page_size) if total else 0
+
     query = query.order_by(AdmissionEnquiry.created_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
-
     result = await db.execute(query)
-    return [EnquiryResponse.model_validate(e) for e in result.scalars().all()]
+
+    return EnquiryListResponse(
+        items=[EnquiryResponse.model_validate(e) for e in result.scalars().all()],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @router.get("/{enquiry_id}", response_model=EnquiryResponse)

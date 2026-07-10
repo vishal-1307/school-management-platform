@@ -107,7 +107,7 @@ function NoticesPage() {
           </span>
         ),
     },
-    { header: "Created", render: (n) => formatDate(n.created_at) },
+    { header: "Created", className: "whitespace-nowrap", render: (n) => formatDate(n.created_at) },
     {
       header: "Actions",
       render: (n) => (
@@ -253,9 +253,13 @@ function ComposeModal({
         <Field label="Channels">
           <div className="flex flex-wrap gap-3">
             {CHANNELS.map((channel) => (
-              <label key={channel.key} className="flex items-center gap-2 text-sm font-bold text-slate-600">
+              <label
+                key={channel.key}
+                className="flex items-center gap-2 text-sm font-bold text-slate-600 px-2 py-2 -mx-2 rounded-xl hover:bg-slate-50 cursor-pointer"
+              >
                 <input
                   type="checkbox"
+                  className="w-5 h-5 accent-indigo-600"
                   checked={channels.includes(channel.key)}
                   onChange={() => toggleChannel(channel.key)}
                 />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Award } from "lucide-react";
 import { authFetch } from "../../lib/api";
 import PortalShell from "../portal/PortalShell";
 import { Button, Spinner, formatDate, useToast } from "../portal/kit";
@@ -62,9 +63,15 @@ function ResultsView() {
   return (
     <>
       {exams.length === 0 && (
-        <p className="text-sm text-slate-400 font-semibold">
-          No results published yet — they appear here as soon as the school releases them.
-        </p>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-12 px-6 flex flex-col items-center gap-3 text-center">
+          <span className="w-12 h-12 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center">
+            <Award className="w-6 h-6" />
+          </span>
+          <p className="text-sm font-bold text-slate-500">No results published yet</p>
+          <p className="text-xs text-slate-400 font-semibold max-w-xs">
+            They'll appear here as soon as the school releases them.
+          </p>
+        </div>
       )}
       <div className="flex flex-wrap gap-3">
         {exams.map((exam) => (

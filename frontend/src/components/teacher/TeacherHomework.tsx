@@ -81,7 +81,7 @@ function HomeworkView() {
       render: (h) => `${classNameOf(lookups, h.class_id)} ${sectionNameOf(lookups, h.section_id)}`,
     },
     { header: "Subject", render: (h) => subjectNameOf(lookups, h.subject_id) },
-    { header: "Due", render: (h) => formatDate(h.due_date) },
+    { header: "Due", className: "whitespace-nowrap", render: (h) => formatDate(h.due_date) },
     {
       header: "Actions",
       render: (h) => (

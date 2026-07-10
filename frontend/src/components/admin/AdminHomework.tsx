@@ -59,8 +59,8 @@ function HomeworkPage() {
       render: (h) => `${classNameOf(lookups, h.class_id)} ${sectionNameOf(lookups, h.section_id)}`,
     },
     { header: "Subject", render: (h) => subjectNameOf(lookups, h.subject_id) },
-    { header: "Assigned", render: (h) => formatDate(h.created_at) },
-    { header: "Due", render: (h) => formatDate(h.due_date) },
+    { header: "Assigned", className: "whitespace-nowrap", render: (h) => formatDate(h.created_at) },
+    { header: "Due", className: "whitespace-nowrap", render: (h) => formatDate(h.due_date) },
     {
       header: "Attachment",
       render: (h) =>

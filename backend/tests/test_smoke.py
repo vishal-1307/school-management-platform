@@ -91,7 +91,7 @@ async def test_public_admission_enquiry(client, admin_headers):
     )
     assert response.status_code == 201
     listing = await client.get("/api/admissions/", headers=admin_headers)
-    assert any(e["child_name"] == "New Kid" for e in listing.json())
+    assert any(e["child_name"] == "New Kid" for e in listing.json()["items"])
 
 
 async def test_public_contact_form(client, admin_headers):
