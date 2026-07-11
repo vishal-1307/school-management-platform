@@ -29,22 +29,36 @@ const AUTOMATION_LABELS: Record<keyof Automation, [string, string]> = {
   results_notification: ["Results notifications", "Message parents when exam results are published"],
 };
 
+interface Features {
+  ai_assistant_enabled: boolean;
+}
+
+const FEATURE_LABELS: Record<keyof Features, [string, string]> = {
+  ai_assistant_enabled: [
+    "AI Assistant (paid add-on)",
+    "Adds a role-scoped chat assistant to the admin, teacher, and student portals",
+  ],
+};
+
 function SettingsPage() {
   const toast = useToast();
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [school, setSchool] = useState<SchoolProfile | null>(null);
   const [automation, setAutomation] = useState<Automation | null>(null);
+  const [features, setFeatures] = useState<Features | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [profile, auto, lk] = await Promise.all([
+      const [profile, auto, feat, lk] = await Promise.all([
         authFetch<SchoolProfile>("/api/settings/school"),
         authFetch<Automation>("/api/settings/automation"),
+        authFetch<Features>("/api/settings/features"),
         getLookups(true),
       ]);
       setSchool(profile);
       setAutomation(auto);
+      setFeatures(feat);
       setLookups(lk);
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed to load settings", "error");
@@ -81,7 +95,20 @@ function SettingsPage() {
     }
   };
 
-  if (!school || !automation || !lookups) return <Spinner />;
+  const toggleFeature = async (key: keyof Features) => {
+    if (!features) return;
+    const next = { ...features, [key]: !features[key] };
+    setFeatures(next);
+    try {
+      await authFetch("/api/settings/features", { method: "PUT", body: next });
+      toast("Feature settings saved");
+    } catch (error) {
+      setFeatures(features);
+      toast(error instanceof Error ? error.message : "Save failed", "error");
+    }
+  };
+
+  if (!school || !automation || !features || !lookups) return <Spinner />;
 
   return (
     <>
@@ -154,6 +181,31 @@ function SettingsPage() {
             <span>
               <span className="block text-sm font-bold text-slate-700">{AUTOMATION_LABELS[key][0]}</span>
               <span className="block text-xs text-slate-500 font-semibold">{AUTOMATION_LABELS[key][1]}</span>
+            </span>
+          </label>
+        ))}
+      </section>
+
+      {/* Feature add-ons */}
+      <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <h2 className="font-extrabold text-slate-800">Features</h2>
+        <p className="text-xs text-slate-500 font-semibold">
+          Paid add-ons for this school. Off by default.
+        </p>
+        {(Object.keys(FEATURE_LABELS) as (keyof Features)[]).map((key) => (
+          <label
+            key={key}
+            className="flex items-start gap-3 cursor-pointer -mx-2 px-2 py-2 rounded-xl hover:bg-slate-50"
+          >
+            <input
+              type="checkbox"
+              className="mt-1 w-5 h-5 flex-shrink-0 accent-indigo-600"
+              checked={features[key]}
+              onChange={() => toggleFeature(key)}
+            />
+            <span>
+              <span className="block text-sm font-bold text-slate-700">{FEATURE_LABELS[key][0]}</span>
+              <span className="block text-xs text-slate-500 font-semibold">{FEATURE_LABELS[key][1]}</span>
             </span>
           </label>
         ))}

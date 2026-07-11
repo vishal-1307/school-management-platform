@@ -90,6 +90,21 @@ class Settings(BaseSettings):
     # ── Frontend ────────────────────────────────────────────────────────
     frontend_url: str = ""
 
+    # ── AI Assistant (optional — feature disabled until DO_MODEL_ACCESS_KEY
+    # is set). DigitalOcean Serverless Inference. ai_wire_format picks which
+    # translation client.py applies before/after the HTTP call:
+    #   "openai"    — /v1/chat/completions, Bearer auth, OpenAI tool-calling
+    #                 shape (DeepSeek, GLM, Llama, GPT-* on this platform).
+    #   "anthropic" — /v1/messages, x-api-key auth, native Anthropic Messages
+    #                 API shape (Claude models, or a direct Anthropic key).
+    # Either way, app/services/ai/assistant.py and tools.py always see the
+    # same normalized {stop_reason, content} shape — client.py is the only
+    # file that changes when swapping model/provider.
+    do_model_access_key: str = ""
+    ai_base_url: str = "https://inference.do-ai.run/v1/chat/completions"
+    ai_model: str = "deepseek-4-flash"
+    ai_wire_format: str = "openai"
+
     # ── CORS ────────────────────────────────────────────────────────────
     # Accepts either a JSON array or a plain comma-separated string, so a
     # value like "https://site.vercel.app" set in a dashboard cannot crash

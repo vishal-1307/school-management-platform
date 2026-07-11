@@ -15,6 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
+from app.models.school import School
 from app.models.staff import Staff
 from app.models.student import Student
 from app.models.user import User, UserRole
@@ -65,6 +66,12 @@ async def _build_user_response(db: AsyncSession, user: User) -> UserResponse:
         response.display_name = (
             "Super Admin" if user.role == UserRole.SUPER_ADMIN else "Office Admin"
         )
+
+    school_result = await db.execute(select(School))
+    school = school_result.scalars().first()
+    response.assistant_enabled = bool(
+        (school.settings or {}).get("features", {}).get("ai_assistant_enabled", False)
+    ) if school else False
 
     return response
 

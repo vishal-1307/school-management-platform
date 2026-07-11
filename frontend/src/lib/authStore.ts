@@ -21,6 +21,7 @@ export interface Me {
   is_active: boolean;
   display_name: string;
   class_label: string | null;
+  assistant_enabled: boolean;
 }
 
 const TOKEN_KEY = "auth_token";

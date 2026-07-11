@@ -19,8 +19,10 @@ from app.routers.contact import router as contact_router
 from app.routers.uploads import router as uploads_router
 from app.routers.communication import router as communication_router
 from app.routers.leaves import router as leaves_router
+from app.routers.ai import router as ai_router
 
 __all__ = [
+    "ai_router",
     "leaves_router",
     "users_router",
     "public_router",

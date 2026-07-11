@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { getMe, portalHomeFor, signOut, type Me } from "../../lib/authStore";
 import { useIdleTimeout } from "../../lib/useIdleTimeout";
+import ChatPanel from "./ChatPanel";
 import { Button, Modal, Spinner, ToastProvider } from "./kit";
 
 interface NavItem {
@@ -370,6 +371,7 @@ export default function PortalShell({
           </main>
         </div>
       </div>
+      {me.assistant_enabled && <ChatPanel portal={portal} me={me} hideFab={menuOpen} />}
     </ToastProvider>
   );
 }

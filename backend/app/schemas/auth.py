@@ -33,6 +33,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     display_name: str = ""
     class_label: str | None = None
+    assistant_enabled: bool = False
 
     model_config = {"from_attributes": True}
 

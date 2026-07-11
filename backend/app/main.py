@@ -28,6 +28,7 @@ from app.routers import (
     uploads_router,
     communication_router,
     leaves_router,
+    ai_router,
 )
 
 from contextlib import asynccontextmanager
@@ -114,3 +115,4 @@ app.include_router(contact_router, prefix="/api")
 app.include_router(uploads_router, prefix="/api")
 app.include_router(communication_router, prefix="/api")
 app.include_router(leaves_router, prefix="/api")
+app.include_router(ai_router, prefix="/api")

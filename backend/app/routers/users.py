@@ -25,31 +25,12 @@ from app.schemas.user import (
     UserCreate,
     UserUpdate,
 )
+from app.services.audit import log_action
 from app.services.security import hash_password
 
 router = APIRouter(prefix="/users", tags=["Users & Roles"])
 
 ADMIN_ROLES = (UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN)
-
-
-async def log_action(
-    db: AsyncSession,
-    user: User | None,
-    action: str,
-    entity_type: str | None = None,
-    entity_id: int | None = None,
-    detail: dict | None = None,
-) -> None:
-    """Append a row to the audit trail. Never pass password material in detail."""
-    db.add(
-        AuditLog(
-            user_id=user.id if user else None,
-            action=action,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            detail=detail,
-        )
-    )
 
 
 @router.get("/audit-log", response_model=List[AuditLogResponse])

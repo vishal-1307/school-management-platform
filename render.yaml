@@ -27,6 +27,11 @@ services:
       # DEMO_CREDENTIALS.md). Set to false after wiping demo data.
       - key: SEED_ON_START
         value: "true"
+      # AI Assistant add-on — paste the DigitalOcean Serverless Inference
+      # model access key; feature stays off (403) until this is set AND
+      # the admin enables it under Settings → Features.
+      - key: DO_MODEL_ACCESS_KEY
+        sync: false
       # Add later via dashboard when provisioned (all optional at boot):
       # RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
       # CLOUDINARY_URL, WHATSAPP_TOKEN, WHATSAPP_PHONE_ID

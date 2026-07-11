@@ -111,6 +111,46 @@ async def update_automation_settings(
     return current
 
 
+# Feature add-ons — stored in School.settings JSON, same pattern as automation.
+FEATURE_DEFAULTS = {
+    "ai_assistant_enabled": False,
+}
+
+
+@router.get("/features")
+async def get_feature_settings(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
+) -> dict:
+    """Current paid add-on feature toggles."""
+    result = await db.execute(select(School))
+    school = result.scalars().first()
+    stored = (school.settings or {}).get("features", {}) if school else {}
+    return {**FEATURE_DEFAULTS, **stored}
+
+
+@router.put("/features")
+async def update_feature_settings(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.SUPER_ADMIN)),
+) -> dict:
+    """Toggle feature add-ons; unknown keys are ignored."""
+    result = await db.execute(select(School))
+    school = result.scalars().first()
+    if not school:
+        raise HTTPException(status_code=404, detail="School profile not set up yet")
+    current = {**FEATURE_DEFAULTS, **(school.settings or {}).get("features", {})}
+    for key in FEATURE_DEFAULTS:
+        if key in payload:
+            current[key] = bool(payload[key])
+    new_settings = dict(school.settings or {})
+    new_settings["features"] = current
+    school.settings = new_settings
+    await db.flush()
+    return current
+
+
 # Academic Years Endpoints
 @router.get("/academic-years", response_model=list[AcademicYearResponse])
 async def list_academic_years(db: AsyncSession = Depends(get_db)):
