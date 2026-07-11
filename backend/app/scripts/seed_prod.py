@@ -168,10 +168,13 @@ async def seed_production() -> None:
         if school is None:
             session.add(School(
                 name="Knowledge Development Kindergarten Academy",
-                address="Sector 5, Knowledge Campus, Near City Park, New Delhi, 110001",
-                affiliation_number="1234567",
+                address="Basopatti Road, Near Ugna Chawk, Benipatti, Madhubani, Bihar 847223",
+                # No CBSE affiliation number yet — the school's own current
+                # marketing says affiliation is pending ("to be affiliated"),
+                # not granted. Leave blank rather than seed a fake number.
+                affiliation_number=None,
                 contact_email="info@knowledgeacademy.edu.in",
-                contact_phone="+91 98765 43210",
+                contact_phone="+91 99349 75151 / +91 99731 04141",
                 settings={"allow_online_fees": True, "automation": {}},
             ))
             created.append("school")

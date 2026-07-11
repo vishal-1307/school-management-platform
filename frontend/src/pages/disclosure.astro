@@ -1,36 +1,42 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { getSchoolInfo } from "../lib/schoolInfo";
+
+const school = await getSchoolInfo();
 
 const generalInfo = [
-  { key: "Affiliation Number", value: "1234567" },
-  { key: "School Code", value: "89012" },
-  { key: "Establishment Year", value: "2001" },
-  { key: "Principal Name", value: "Mrs. Anita Sharma" },
-  { key: "Principal Qualification", value: "M.A., B.Ed." },
-  { key: "Official Address", value: "Sector 5, Knowledge Campus, Near City Park" },
-  { key: "Contact Email", value: "info@knowledgeacademy.edu.in" },
-  { key: "Contact Phone", value: "+91 98765 43210" },
+  { key: "Establishment Year", value: String(school.establishedYear) },
+  { key: "Recognition Status", value: "Recognised by the State Government of Bihar" },
+  { key: "CBSE Affiliation", value: "In process — not yet granted" },
+  { key: "Official Address", value: school.address },
+  { key: "Contact Phone", value: `${school.contactPhone} / ${school.contactPhoneAlt}` },
+  { key: "Contact Email", value: school.contactEmail },
 ];
 
+// CBSE-required disclosure documents apply once affiliation is granted.
+// Publishing fake "#" download links for these would misrepresent the
+// school's actual (pending) affiliation status — so this list states
+// status honestly instead of linking to non-existent files.
 const documents = [
-  { name: "CBSE Affiliation Extension Letter", link: "#" },
-  { name: "Society/Trust Registration Certificate", link: "#" },
-  { name: "No Objection Certificate (NOC) from State Govt.", link: "#" },
-  { name: "Recognition Certificate under RTE Act, 2009", link: "#" },
-  { name: "Valid Building Safety Certificate", link: "#" },
-  { name: "Valid Fire Safety Certificate", link: "#" },
-  { name: "Self-Certification / Water & Sanitation Certificate", link: "#" },
-  { name: "List of School Management Committee (SMC)", link: "#" },
+  "CBSE Affiliation Letter",
+  "Society/Trust Registration Certificate",
+  "No Objection Certificate (NOC) from State Govt.",
+  "Recognition Certificate under RTE Act, 2009",
+  "Valid Building Safety Certificate",
+  "Valid Fire Safety Certificate",
+  "Self-Certification / Water & Sanitation Certificate",
+  "List of School Management Committee (SMC)",
 ];
 ---
 
-<BaseLayout title="CBSE Mandatory Public Disclosure — Knowledge Development Kindergarten Academy">
+<BaseLayout title="Public Disclosure — Knowledge Development Kindergarten Academy">
   <!-- Banner -->
   <section class="bg-gradient-to-br from-indigo-900 via-indigo-850 to-indigo-950 text-white py-16 px-4 text-center">
     <div class="max-w-4xl mx-auto space-y-4">
-      <h1 class="text-4xl md:text-5xl font-extrabold font-heading">Mandatory Public Disclosure</h1>
+      <h1 class="text-4xl md:text-5xl font-extrabold font-heading">Public Disclosure</h1>
       <p class="text-indigo-200 text-lg max-w-xl mx-auto">
-        Official details and documents published in accordance with CBSE Affiliation Bye-Laws (Clause 2.4.9) for public transparency.
+        General information about the school, published for public transparency. CBSE affiliation is currently
+        in process — the CBSE-specific disclosure documents below will be published here once affiliation is granted.
       </p>
     </div>
   </section>
@@ -55,18 +61,19 @@ const documents = [
 
     <!-- Documents List -->
     <div class="space-y-4 pt-8">
-      <h2 class="text-2xl font-extrabold font-heading text-slate-800">B. Documents & Information</h2>
+      <h2 class="text-2xl font-extrabold font-heading text-slate-800">B. CBSE Disclosure Documents</h2>
+      <p class="text-sm text-slate-500 font-semibold">
+        These documents apply once CBSE affiliation is granted. The school's affiliation is currently in
+        process, so these are not yet available — they will be published here as soon as affiliation comes through.
+      </p>
       <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm divide-y divide-slate-150">
         {documents.map((doc, index) => (
           <div class={`flex justify-between items-center p-5 ${index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}`}>
-            <span class="text-sm font-semibold text-slate-700 leading-normal w-2/3">{doc.name}</span>
-            <a
-              href={doc.link}
-              class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm border border-indigo-100/10"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              Download PDF
-            </a>
+            <span class="text-sm font-semibold text-slate-700 leading-normal w-2/3">{doc}</span>
+            <span class="px-4 py-2 bg-amber-50 text-amber-700 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-amber-100">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Pending Affiliation
+            </span>
           </div>
         ))}
       </div>

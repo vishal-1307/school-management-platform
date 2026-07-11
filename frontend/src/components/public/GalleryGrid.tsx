@@ -17,31 +17,57 @@ interface ApiAlbum {
   images: { id: number; image_url: string; caption: string | null }[];
 }
 
-const PLACEHOLDER_COVER =
-  "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&fit=crop";
-
-// Shown until live albums load; kept if the backend is unreachable.
+// Shown until live albums load from the CMS; kept if the backend is
+// unreachable. Real campus photos, not stock images — see knowledge images/.
 const fallbackAlbums: DisplayAlbum[] = [
   {
     id: -1,
-    title: "Annual Day 2025",
-    desc: "A celebration of student drama, musical performances, and annual prize distributions.",
-    cover: "https://images.unsplash.com/photo-1511578314322-379afb476865?w=500&fit=crop",
-    images: [],
+    title: "Annual Function",
+    desc: "Chief guests, prize distribution, and cultural performances at the school's Annual Function.",
+    cover: "/images/annual-function.jpg",
+    images: [
+      { url: "/images/annual-function.jpg", caption: "Annual Function — chief guests" },
+      { url: "/images/school-exterior-sunset.jpg", caption: "Campus exterior" },
+    ],
   },
   {
     id: -2,
-    title: "Sports Meet 2025",
-    desc: "Track events, obstacle races, and group sports competitions highlighting team spirit.",
-    cover: "https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=500&fit=crop",
-    images: [],
+    title: "Children's Day",
+    desc: "Students in cultural costumes performing on stage for Children's Day celebrations.",
+    cover: "/images/childrens-day-performance.jpg",
+    images: [
+      { url: "/images/childrens-day-performance.jpg", caption: "Children's Day performance" },
+    ],
   },
   {
     id: -3,
-    title: "Classroom Activities",
-    desc: "Interactive arts and crafts session, smart board lessons, and science projects.",
-    cover: PLACEHOLDER_COVER,
-    images: [],
+    title: "Science Exhibition",
+    desc: "Students showcase homemade science and working models; lamp-lighting inauguration ceremony.",
+    cover: "/images/science-fair-projects.jpg",
+    images: [
+      { url: "/images/science-fair-projects.jpg", caption: "Student science & robotics projects" },
+      { url: "/images/science-exhibition-lamp-lighting.jpg", caption: "Inauguration ceremony" },
+    ],
+  },
+  {
+    id: -4,
+    title: "Flag Hoisting Ceremony",
+    desc: "National day flag hoisting with students and staff.",
+    cover: "/images/flag-hoisting-ceremony.jpg",
+    images: [
+      { url: "/images/flag-hoisting-ceremony.jpg", caption: "Flag hoisting ceremony" },
+    ],
+  },
+  {
+    id: -5,
+    title: "Campus Life",
+    desc: "Classrooms, campus infrastructure, and everyday school life.",
+    cover: "/images/classroom-students.jpg",
+    images: [
+      { url: "/images/classroom-students.jpg", caption: "Classroom" },
+      { url: "/images/campus-hallway-safety.jpg", caption: "Campus corridor" },
+      { url: "/images/covered-play-area-transport.jpg", caption: "Covered ground-floor area" },
+    ],
   },
 ];
 

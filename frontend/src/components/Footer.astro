@@ -16,7 +16,7 @@ const quickLinks = [
 ];
 
 const importantLinks = [
-  { label: "Mandatory Public Disclosure", href: "/disclosure" },
+  { label: "Public Disclosure", href: "/disclosure" },
   { label: "Notice Board", href: "/notices" },
   { label: "Portal Login", href: "/login" },
   { label: "Transfer Certificate (via Portal)", href: "/login" },
@@ -49,8 +49,21 @@ const importantLinks = [
           </div>
         </div>
         <p class="text-slate-400 text-sm leading-relaxed mb-6">
-          Nurturing young minds with excellence since 1998. A CBSE-affiliated institution committed to holistic education, character building, and academic brilliance.
+          Nurturing young minds with excellence since {school.establishedYear}. Recognised by the State Government of Bihar, committed to holistic education, character building, and academic brilliance.
         </p>
+        <div class="flex items-center gap-3">
+          <a
+            href={school.facebookUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Follow us on Facebook"
+            class="w-10 h-10 rounded-lg bg-slate-800 hover:bg-primary-600 flex items-center justify-center transition-colors"
+          >
+            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.19 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.23.2 2.23.2v2.45h-1.26c-1.24 0-1.63.77-1.63 1.56v1.87h2.78l-.44 2.91h-2.34V22c4.78-.75 8.44-4.92 8.44-9.94z"/>
+            </svg>
+          </a>
+        </div>
       </div>
 
       <!-- Column 2: Quick Links -->
@@ -99,7 +112,7 @@ const importantLinks = [
             </div>
             <div>
               <a href={`tel:${school.contactPhone.replace(/\s+/g, "")}`} class="text-sm text-slate-300 hover:text-primary-300 transition-colors">{school.contactPhone}</a>
-              <p class="text-xs text-slate-500">Mon–Sat, 8AM – 3PM</p>
+              <p class="text-xs text-slate-500">Alt: {school.contactPhoneAlt}</p>
             </div>
           </li>
           <li class="flex items-center gap-3">
@@ -139,7 +152,7 @@ const importantLinks = [
         <!-- Map Embed -->
         <div class="rounded-xl overflow-hidden border border-slate-700 mb-6">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3502.0!2d77.2!3d28.6!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjjCsDM2JzAwLjAiTiA3N8KwMTInMDAuMCJF!5e0!3m2!1sen!2sin!4v1"
+            src="https://maps.google.com/maps?q=26.4494367,85.9151982&z=16&output=embed"
             width="100%"
             height="180"
             style="border:0;"
@@ -161,8 +174,8 @@ const importantLinks = [
             </svg>
           </div>
           <div>
-            <p class="text-sm font-semibold text-emerald-300 group-hover:text-emerald-200 transition-colors">Mandatory Public Disclosure</p>
-            <p class="text-xs text-slate-500">As per CBSE Guidelines</p>
+            <p class="text-sm font-semibold text-emerald-300 group-hover:text-emerald-200 transition-colors">Public Disclosure</p>
+            <p class="text-xs text-slate-500">Recognition & compliance information</p>
           </div>
         </a>
       </div>
@@ -177,7 +190,7 @@ const importantLinks = [
           &copy; {currentYear} Knowledge Development Kindergarten Academy. All rights reserved.
         </p>
         <div class="flex items-center gap-6">
-          <a href="/disclosure" class="text-xs text-slate-500 hover:text-primary-400 transition-colors">CBSE Disclosure</a>
+          <a href="/disclosure" class="text-xs text-slate-500 hover:text-primary-400 transition-colors">Public Disclosure</a>
         </div>
       </div>
     </div>

@@ -11,13 +11,27 @@ export interface SchoolInfo {
   address: string;
   contactEmail: string;
   contactPhone: string;
+  /** Second number from the school's own signboard — display-only, no tel: link math. */
+  contactPhoneAlt: string;
+  /** Static facts verified against the school's own signage/social presence —
+   * not yet wired to an admin-editable field (rarely change). */
+  establishedYear: number;
+  facebookUrl: string;
+  mapsQuery: string;
 }
 
 const FALLBACK: SchoolInfo = {
   name: "Knowledge Development Kindergarten Academy",
-  address: "Sector 5, Knowledge Campus, Near City Park, New Delhi, 110001",
+  address: "Basopatti Road, Near Ugna Chawk, Benipatti, Madhubani, Bihar 847223",
+  // TODO(placeholder — unverified): no official email was found on the
+  // school's Google Maps listing, Facebook page, or directory listings.
+  // Replace once the school confirms a real address.
   contactEmail: "info@knowledgeacademy.edu.in",
-  contactPhone: "+91 98765 43210",
+  contactPhone: "+91 99349 75151",
+  contactPhoneAlt: "+91 99731 04141",
+  establishedYear: 2005,
+  facebookUrl: "https://www.facebook.com/kdkabenipatti/",
+  mapsQuery: "Knowledge+Development+Kindergarten+Academy+Benipatti",
 };
 
 const API_URL: string = (
@@ -33,6 +47,7 @@ export async function getSchoolInfo(): Promise<SchoolInfo> {
     const data = await response.json();
     if (!data) return FALLBACK;
     return {
+      ...FALLBACK,
       name: data.name || FALLBACK.name,
       address: data.address || FALLBACK.address,
       contactEmail: data.contact_email || FALLBACK.contactEmail,
