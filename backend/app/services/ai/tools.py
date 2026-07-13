@@ -41,6 +41,24 @@ ReadFn = Callable[[AsyncSession, User, dict], Awaitable[Any]]
 PreviewFn = Callable[[AsyncSession, User, dict], Awaitable[dict]]
 ExecuteFn = Callable[[AsyncSession, User, dict, BackgroundTasks], Awaitable[str]]
 
+# Role groups mirroring the ones the reused router handlers enforce.
+ADMIN_ROLES: tuple[UserRole, ...] = (UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN)
+MARKER_ROLES: tuple[UserRole, ...] = (UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN, UserRole.TEACHER)
+
+# Privilege rank for target-vs-caller comparisons (higher = more privileged).
+_ROLE_RANK: dict[UserRole, int] = {
+    UserRole.SUPER_ADMIN: 3,
+    UserRole.OFFICE_ADMIN: 2,
+    UserRole.TEACHER: 1,
+    UserRole.STUDENT: 0,
+    UserRole.PARENT: 0,
+}
+
+
+def outranks_or_equals(target: UserRole, caller: UserRole) -> bool:
+    """True if target is at least as privileged as caller (blocks lateral/upward writes)."""
+    return _ROLE_RANK.get(target, 0) >= _ROLE_RANK.get(caller, 0)
+
 
 @dataclass
 class ToolSpec:
@@ -50,10 +68,18 @@ class ToolSpec:
     read: ReadFn | None = None
     preview: PreviewFn | None = None
     execute: ExecuteFn | None = None
+    # Roles permitted to run this WRITE tool — mirrors the require_role() gate on
+    # the reused router handler. Enforced server-side in the orchestration loop
+    # and re-checked at /confirm, because the executor calls the handler function
+    # directly and so does NOT run FastAPI's require_role dependency.
+    write_roles: tuple[UserRole, ...] = ()
 
     @property
     def is_write(self) -> bool:
         return self.preview is not None
+
+    def allows(self, role: UserRole) -> bool:
+        return role in self.write_roles
 
     def to_anthropic(self) -> dict:
         return {
@@ -122,6 +148,10 @@ async def _search_people(db: AsyncSession, current_user: User, args: dict) -> An
 
 
 async def _get_student_fee_status(db: AsyncSession, current_user: User, args: dict) -> Any:
+    # Data minimization (SRS: never send more student financial detail to the
+    # third-party model than the question needs): default to a due/no-due
+    # summary; only include the full per-fee-head breakdown when the caller
+    # explicitly asks for it (detail=true) — e.g. "give me the breakdown".
     student = await db.get(Student, args["student_id"])
     if not student:
         return {"error": "not_found", "message": f"No student with id {args['student_id']}"}
@@ -149,12 +179,15 @@ async def _get_student_fee_status(db: AsyncSession, current_user: User, args: di
             "due_date": structure.due_date.isoformat(),
         })
 
-    return {
+    summary = {
         "student_id": student.id,
         "student_name": f"{student.first_name} {student.last_name}",
-        "items": items,
+        "has_dues": total_balance > 0,
         "total_balance": round(total_balance, 2),
     }
+    if args.get("detail"):
+        summary["items"] = items
+    return summary
 
 
 async def _get_student_attendance(db: AsyncSession, current_user: User, args: dict) -> Any:
@@ -194,18 +227,46 @@ async def _list_fee_defaulters(db: AsyncSession, current_user: User, args: dict)
         class_id=args.get("class_id"), academic_year_id=None, as_of_date=None,
         db=db, current_user=current_user,
     )
-    return {"defaulters": [d.model_dump() for d in resp]}
+    if args.get("detail"):
+        return {"defaulters": [d.model_dump() for d in resp]}
+
+    # Data minimization: get_defaulters returns one row per unpaid fee head,
+    # so a class can be dozens of rows of financial detail (amount_due,
+    # amount_paid, due_date per head) for one bulk question ("who owes fees
+    # this class"). Default to one row per student with a total balance —
+    # full per-fee-head figures only if the admin explicitly asks (detail=true).
+    by_student: dict[int, dict] = {}
+    for d in resp:
+        row = by_student.setdefault(d.student_id, {
+            "student_id": d.student_id, "student_name": d.student_name,
+            "class_name": d.class_name, "total_balance": 0.0,
+        })
+        row["total_balance"] += d.balance
+    for row in by_student.values():
+        row["total_balance"] = round(row["total_balance"], 2)
+    return {"defaulter_count": len(by_student), "defaulters": list(by_student.values())}
+
+
+def _minimize_enquiry(data: dict, include_contact: bool) -> dict:
+    # Data minimization: an enquiry pipeline-status question doesn't need the
+    # parent's phone/email/address sent to the third-party model — only
+    # include them if explicitly asked (e.g. "what's their contact info").
+    if include_contact:
+        return data
+    return {k: v for k, v in data.items() if k not in ("phone", "email", "address")}
 
 
 async def _get_enquiry_status(db: AsyncSession, current_user: User, args: dict) -> Any:
     from app.routers.admissions import get_enquiry, list_enquiries
+
+    include_contact = bool(args.get("detail"))
 
     if args.get("enquiry_id"):
         try:
             resp = await get_enquiry(args["enquiry_id"], db=db, current_user=current_user)
         except HTTPException as exc:
             return {"error": "not_found", "message": str(exc.detail)}
-        return resp.model_dump()
+        return _minimize_enquiry(resp.model_dump(), include_contact)
 
     name = (args.get("child_name") or "").strip().lower()
     resp = await list_enquiries(status_filter=None, page=1, page_size=100, db=db, current_user=current_user)
@@ -220,7 +281,7 @@ async def _get_enquiry_status(db: AsyncSession, current_user: User, args: dict) 
                 for m in matches
             ],
         }
-    return matches[0].model_dump()
+    return _minimize_enquiry(matches[0].model_dump(), include_contact)
 
 
 async def _get_staff_assignments(db: AsyncSession, current_user: User, args: dict) -> Any:
@@ -342,6 +403,14 @@ async def _preview_reset_password(db: AsyncSession, current_user: User, args: di
     user = await _resolve_user_account(db, args)
     if not user:
         return {"status": "error", "message": "No matching user account found for that person"}
+    # Defense in depth: even though only SUPER_ADMIN can reach this tool
+    # (see write_roles on the ToolSpec below), never let the AI reset a
+    # password for an account at or above the caller's own privilege level.
+    if outranks_or_equals(user.role, current_user.role):
+        return {
+            "status": "error",
+            "message": "You can't reset a password for an account at or above your own privilege level through the assistant — use the Users & Roles page directly.",
+        }
     return {
         "status": "ready",
         "title": "Reset password",
@@ -390,8 +459,18 @@ ADMIN_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="get_student_fee_status", read=_get_student_fee_status,
-        description="Get a student's fee heads, amounts paid, and outstanding balance.",
-        input_schema={"type": "object", "properties": {"student_id": {"type": "integer"}}, "required": ["student_id"]},
+        description=(
+            "Get whether a student has outstanding fee dues and the total balance. "
+            "Pass detail=true only if the admin explicitly asks for a fee-head-by-fee-head breakdown."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "student_id": {"type": "integer"},
+                "detail": {"type": "boolean", "description": "Include the full per-fee-head breakdown"},
+            },
+            "required": ["student_id"],
+        },
     ),
     ToolSpec(
         name="get_student_attendance", read=_get_student_attendance,
@@ -405,15 +484,30 @@ ADMIN_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="list_fee_defaulters", read=_list_fee_defaulters,
-        description="List students with unpaid or partially paid fees, optionally filtered by class.",
-        input_schema={"type": "object", "properties": {"class_id": {"type": "integer"}}},
+        description=(
+            "List students with unpaid or partially paid fees, optionally filtered by class. "
+            "Pass detail=true only if the admin explicitly asks for a fee-head-by-fee-head breakdown."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "class_id": {"type": "integer"},
+                "detail": {"type": "boolean", "description": "Include the full per-fee-head breakdown"},
+            },
+        },
     ),
     ToolSpec(
         name="get_enquiry_status", read=_get_enquiry_status,
-        description="Look up an admission enquiry's pipeline status by child name or enquiry id.",
+        description=(
+            "Look up an admission enquiry's pipeline status by child name or enquiry id. "
+            "Pass detail=true only if the admin explicitly asks for the parent's contact info."
+        ),
         input_schema={
             "type": "object",
-            "properties": {"child_name": {"type": "string"}, "enquiry_id": {"type": "integer"}},
+            "properties": {
+                "child_name": {"type": "string"}, "enquiry_id": {"type": "integer"},
+                "detail": {"type": "boolean", "description": "Include parent phone/email/address"},
+            },
         },
     ),
     ToolSpec(
@@ -425,16 +519,23 @@ ADMIN_TOOLS: list[ToolSpec] = [
         name="deactivate_student", preview=_preview_deactivate_student, execute=_execute_deactivate_student,
         description="Deactivate (soft-delete) a student, revoking their portal access. Requires confirmation.",
         input_schema={"type": "object", "properties": {"student_id": {"type": "integer"}}, "required": ["student_id"]},
+        # delete_student (students.py) is require_role(SUPER_ADMIN) — match it exactly,
+        # since the executor calls that handler directly and bypasses its own dependency.
+        write_roles=(UserRole.SUPER_ADMIN,),
     ),
     ToolSpec(
         name="reactivate_student", preview=_preview_reactivate_student, execute=_execute_reactivate_student,
         description="Reactivate a previously deactivated student. Requires confirmation.",
         input_schema={"type": "object", "properties": {"student_id": {"type": "integer"}}, "required": ["student_id"]},
+        # update_student (students.py) is require_role(*ADMIN_ROLES).
+        write_roles=ADMIN_ROLES,
     ),
     ToolSpec(
         name="deactivate_staff", preview=_preview_deactivate_staff, execute=_execute_deactivate_staff,
         description="Deactivate (soft-delete) a staff member, revoking their portal access. Requires confirmation.",
         input_schema={"type": "object", "properties": {"staff_id": {"type": "integer"}}, "required": ["staff_id"]},
+        # delete_staff (staff.py) is require_role(SUPER_ADMIN).
+        write_roles=(UserRole.SUPER_ADMIN,),
     ),
     ToolSpec(
         name="reset_user_password", preview=_preview_reset_password, execute=_execute_reset_password,
@@ -448,6 +549,8 @@ ADMIN_TOOLS: list[ToolSpec] = [
                 "student_id": {"type": "integer"}, "staff_id": {"type": "integer"}, "login_id": {"type": "string"},
             },
         },
+        # reset_password (users.py) is require_role(SUPER_ADMIN).
+        write_roles=(UserRole.SUPER_ADMIN,),
     ),
 ]
 
@@ -701,6 +804,8 @@ TEACHER_TOOLS: list[ToolSpec] = [
                 "absent_student_names": {"type": "array", "items": {"type": "string"}},
             },
         },
+        # mark_attendance (attendance.py) is require_role(*MARKER_ROLES).
+        write_roles=MARKER_ROLES,
     ),
 ]
 
@@ -748,7 +853,18 @@ async def _get_my_results(db: AsyncSession, current_user: User, args: dict) -> A
 async def _get_my_fee_status(db: AsyncSession, current_user: User, args: dict) -> Any:
     from app.routers.fees import my_fee_status
 
-    return await my_fee_status(db=db, current_user=current_user)
+    full = await my_fee_status(db=db, current_user=current_user)
+    if args.get("detail"):
+        return full
+    # Data minimization: default to a due/no-due summary rather than sending
+    # every fee item and every past receipt number to the third-party model
+    # for what's usually a yes/no question ("do I owe anything").
+    total_balance = round(sum(item["balance"] for item in full["items"]), 2)
+    return {
+        "student_id": full["student_id"],
+        "has_dues": total_balance > 0,
+        "total_balance": total_balance,
+    }
 
 
 async def _get_my_timetable(db: AsyncSession, current_user: User, args: dict) -> Any:
@@ -787,8 +903,14 @@ STUDENT_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="get_my_fee_status", read=_get_my_fee_status,
-        description="Get my fee dues, balances, and payment history.",
-        input_schema={"type": "object", "properties": {}},
+        description=(
+            "Get whether I have outstanding fee dues and the total balance. "
+            "Pass detail=true only if I explicitly ask for the full item/payment-history breakdown."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {"detail": {"type": "boolean", "description": "Include full items + payment history"}},
+        },
     ),
     ToolSpec(
         name="get_my_timetable", read=_get_my_timetable,

@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import secrets
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
+
+from app.models.user import UserRole
 
 _TTL_SECONDS = 300
 
@@ -32,6 +34,10 @@ class PendingAction:
     preview: Any
     executor: Callable[..., Any]
     expires_at: float
+    # Roles allowed to run this tool, captured at proposal time. Re-checked
+    # against current_user.role at /confirm — a role change between propose
+    # and confirm must not grant a privilege the current role lacks.
+    required_roles: tuple[UserRole, ...] = field(default_factory=tuple)
 
 
 _STORE: dict[str, PendingAction] = {}
@@ -52,6 +58,7 @@ def create(
     summary: str,
     preview: Any,
     executor: Callable[..., Any],
+    required_roles: tuple[UserRole, ...] = (),
 ) -> PendingAction:
     _prune()
     action_id = secrets.token_urlsafe(16)
@@ -65,6 +72,7 @@ def create(
         preview=preview,
         executor=executor,
         expires_at=time.monotonic() + _TTL_SECONDS,
+        required_roles=required_roles,
     )
     _STORE[action_id] = action
     return action

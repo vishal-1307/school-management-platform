@@ -70,9 +70,13 @@ def test_student_toolset_is_read_only_and_takes_no_identifying_params():
     assert len(tools) == 6
     for tool in tools:
         assert not tool.is_write, f"{tool.name} must be read-only for students"
-        # No tool may accept a student_id (or any) parameter — identity is
-        # always current_user.linked_student_id, never a client-supplied id.
-        assert tool.input_schema.get("properties", {}) == {}
+        # No tool may accept an identifying parameter (student_id or similar)
+        # — identity is always current_user.linked_student_id, never a
+        # client-supplied id. Non-identifying flags (e.g. "detail", used for
+        # data-minimization) are fine.
+        properties = tool.input_schema.get("properties", {})
+        identifying = {k for k in properties if k.endswith("_id") or k == "id"}
+        assert not identifying, f"{tool.name} exposes identifying params: {identifying}"
 
 
 def test_teacher_and_student_toolsets_have_no_admin_tools():
@@ -394,3 +398,185 @@ async def test_mark_attendance_via_ai_updates_existing_row_not_duplicate(
         ).scalars().all()
     assert len(rows) == 1, "re-marking the same student/date/period must update, never duplicate"
     assert rows[0].status.value == "absent"
+
+
+# ── C2 fix: AI write-tool role gate (executors call handlers directly, so
+# FastAPI's require_role() dependency never runs — the ToolSpec.write_roles
+# gate in the orchestration loop is the only thing enforcing this). ──────
+
+
+def test_admin_write_tools_have_correct_write_roles():
+    """Structural check: every admin write tool's write_roles matches the
+    require_role() the reused router handler actually enforces."""
+    from app.models.user import UserRole
+    from app.services.ai.tools import ADMIN_TOOLS, TEACHER_TOOLS
+
+    by_name = {t.name: t for t in ADMIN_TOOLS if t.is_write}
+    assert by_name["deactivate_student"].write_roles == (UserRole.SUPER_ADMIN,)
+    assert by_name["deactivate_staff"].write_roles == (UserRole.SUPER_ADMIN,)
+    assert by_name["reset_user_password"].write_roles == (UserRole.SUPER_ADMIN,)
+    assert UserRole.OFFICE_ADMIN not in by_name["deactivate_student"].write_roles
+    assert UserRole.OFFICE_ADMIN not in by_name["deactivate_staff"].write_roles
+    assert UserRole.OFFICE_ADMIN not in by_name["reset_user_password"].write_roles
+    # reactivate_student matches update_student's require_role(*ADMIN_ROLES).
+    assert set(by_name["reactivate_student"].write_roles) == {UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN}
+
+    teacher_write = next(t for t in TEACHER_TOOLS if t.is_write)
+    assert teacher_write.name == "mark_class_attendance"
+    assert set(teacher_write.write_roles) == {UserRole.SUPER_ADMIN, UserRole.OFFICE_ADMIN, UserRole.TEACHER}
+
+
+async def test_office_admin_cannot_deactivate_student_via_ai(client, admin_headers, ai_enabled, monkeypatch):
+    """office_admin has no manual capability to deactivate a student
+    (delete_student is require_role(SUPER_ADMIN) only) — the AI must not
+    grant it one just because ADMIN_TOOLS is shared across both admin roles."""
+    created_office_admin = await client.post(
+        "/api/users/",
+        headers=admin_headers,
+        json={"login_id": "AI-OFFICE-1", "password": "OfficePass@1", "role": "office_admin"},
+    )
+    assert created_office_admin.status_code == 201
+
+    login = await client.post(
+        "/api/auth/login", json={"login_id": "AI-OFFICE-1", "password": "OfficePass@1"}
+    )
+    assert login.status_code == 200
+    office_headers = {"Authorization": f"Bearer {login.json()['token']}"}
+
+    created_student = await client.post(
+        "/api/students/",
+        headers=admin_headers,
+        json={
+            "first_name": "Officetest", "last_name": "Kid", "dob": "2018-05-05", "gender": "male",
+            "class_id": 1, "section_id": 1, "roll_number": 52,
+        },
+    )
+    student_id = created_student.json()["id"]
+
+    scripted = ScriptedAssistant(
+        _tool_use("t1", "deactivate_student", {"student_id": student_id}),
+        _end_turn("You don't have permission to perform that action."),
+    )
+    monkeypatch.setattr("app.services.ai.assistant.run_messages", scripted)
+
+    chat = await client.post(
+        "/api/ai/assistant/chat",
+        headers=office_headers,
+        json={"transcript": [{"role": "user", "text": f"deactivate student {student_id}"}]},
+    )
+    assert chat.status_code == 200
+    assert chat.json().get("pending_action") is None, "office_admin must never get a pending write action for this tool"
+
+    # The preview function must never have even run — assert the tool_result
+    # fed back to the model is the permission error, not a resolved preview.
+    tool_result = scripted.calls[1]["messages"][-1]["content"][0]["content"]
+    assert "permission" in tool_result.lower()
+
+    still_active = await client.get(f"/api/students/{student_id}", headers=admin_headers)
+    assert still_active.json()["is_active"] is True
+
+
+async def test_reset_password_refuses_target_at_or_above_caller_privilege(client, admin_headers):
+    """Defense in depth for C2: even a caller who CAN call reset_user_password
+    (super_admin) must not be able to use it against an equal/higher-privileged
+    account via the assistant."""
+    from app.database import async_session_factory
+    from app.models.user import User
+    from app.services.ai.tools import _preview_reset_password
+
+    other_super_admin = await client.post(
+        "/api/users/",
+        headers=admin_headers,
+        json={"login_id": "AI-SUPER-2", "password": "SuperPass@1", "role": "super_admin"},
+    )
+    assert other_super_admin.status_code == 201
+
+    async with async_session_factory() as db:
+        caller = await db.get(User, 1)  # the seeded 'admin' super_admin
+        result = await _preview_reset_password(db, caller, {"login_id": "AI-SUPER-2"})
+    assert result["status"] == "error"
+    assert "privilege" in result["message"].lower()
+
+
+# ── H1 fix: data minimization before tool results reach the third-party
+# model — verify the default (no detail=true) shape excludes what wasn't
+# asked for, and that detail=true still makes it available on request. ──
+
+
+async def test_student_fee_status_defaults_to_summary_not_full_items(client, admin_headers, ai_enabled, monkeypatch):
+    structure = await client.post(
+        "/api/fees/structures", headers=admin_headers,
+        json={"class_id": 1, "academic_year_id": 1, "fee_head": "Minimization Test Fee",
+              # Far-future due date so this never ties/collides with another
+              # test's fee structure on the shared class_id=1 test DB and
+              # flips ordering in a different test's my_fee_status items[0].
+              "amount": 500, "due_date": "2099-01-01", "term": "Term 1"},
+    )
+    assert structure.status_code == 201
+
+    scripted = ScriptedAssistant(
+        _tool_use("t1", "get_student_fee_status", {"student_id": 1}),
+        _end_turn("They have dues."),
+    )
+    monkeypatch.setattr("app.services.ai.assistant.run_messages", scripted)
+    resp = await client.post(
+        "/api/ai/assistant/chat", headers=admin_headers,
+        json={"transcript": [{"role": "user", "text": "does student 1 owe fees?"}]},
+    )
+    assert resp.status_code == 200
+    tool_result = scripted.calls[1]["messages"][-1]["content"][0]["content"]
+    assert "has_dues" in tool_result
+    assert "items" not in tool_result, "full fee-head breakdown must not be sent for a plain due/no-due question"
+
+
+def test_defaulters_and_enquiry_tools_minimize_by_default():
+    """Unit-tests the pure minimization helpers directly."""
+    from app.services.ai.tools import _minimize_enquiry
+
+    full = {
+        "id": 1, "child_name": "Test Child", "parent_name": "Test Parent",
+        "phone": "9000000000", "email": "parent@example.com", "address": "123 Street", "status": "new",
+    }
+    minimized = _minimize_enquiry(full, include_contact=False)
+    assert "phone" not in minimized and "email" not in minimized and "address" not in minimized
+    assert minimized["child_name"] == "Test Child"  # non-contact fields preserved
+
+    with_contact = _minimize_enquiry(full, include_contact=True)
+    assert with_contact == full
+
+
+async def test_ai_chat_rate_limiter_blocks_a_real_burst(client, admin_headers, ai_enabled, monkeypatch):
+    """AI_CHAT_LIMITER is 20/60s per user (app/routers/ai.py) — fire a real
+    burst of requests at the actual endpoint (not just inspect the code) and
+    confirm the 21st is refused with 429."""
+    from app.routers.ai import AI_CHAT_LIMITER
+
+    AI_CHAT_LIMITER._events.clear()
+    monkeypatch.setattr(
+        "app.services.ai.assistant.run_messages",
+        ScriptedAssistant(*[_end_turn("ok") for _ in range(25)]),
+    )
+    statuses = []
+    for _ in range(21):
+        resp = await client.post(
+            "/api/ai/assistant/chat", headers=admin_headers,
+            json={"transcript": [{"role": "user", "text": "hi"}]},
+        )
+        statuses.append(resp.status_code)
+    assert statuses[:20] == [200] * 20
+    assert statuses[20] == 429
+    AI_CHAT_LIMITER._events.clear()
+
+
+async def test_list_fee_defaulters_collapses_to_one_row_per_student():
+    """Unit-tests the defaulters minimization directly against seeded data."""
+    from app.database import async_session_factory
+    from app.models.user import User
+    from app.services.ai.tools import _list_fee_defaulters
+
+    async with async_session_factory() as db:
+        admin = await db.get(User, 1)
+        result = await _list_fee_defaulters(db, admin, {})
+    assert "defaulters" in result and "defaulter_count" in result
+    for row in result["defaulters"]:
+        assert set(row.keys()) == {"student_id", "student_name", "class_name", "total_balance"}

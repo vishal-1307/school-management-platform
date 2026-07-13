@@ -104,13 +104,38 @@ async def run_assistant(
                 continue
 
             if not tool.is_write:
-                result = await tool.read(db, current_user, args)
+                try:
+                    result = await tool.read(db, current_user, args)
+                except Exception:
+                    tool_results.append({
+                        "type": "tool_result", "tool_use_id": block["id"],
+                        "content": "That request couldn't be completed.", "is_error": True,
+                    })
+                    continue
                 tool_results.append({
                     "type": "tool_result", "tool_use_id": block["id"], "content": _stringify(result),
                 })
                 continue
 
-            preview = await tool.preview(db, current_user, args)
+            # Role gate BEFORE preview runs — mirrors the require_role() the
+            # reused handler enforces, since the executor calls that handler
+            # directly and bypasses its own FastAPI dependency. Never even
+            # resolves names/ids for a role that couldn't run the write.
+            if not tool.allows(current_user.role):
+                tool_results.append({
+                    "type": "tool_result", "tool_use_id": block["id"],
+                    "content": "You don't have permission to perform that action.", "is_error": True,
+                })
+                continue
+
+            try:
+                preview = await tool.preview(db, current_user, args)
+            except Exception:
+                tool_results.append({
+                    "type": "tool_result", "tool_use_id": block["id"],
+                    "content": "That request couldn't be completed.", "is_error": True,
+                })
+                continue
             if preview.get("status") != "ready":
                 tool_results.append({
                     "type": "tool_result", "tool_use_id": block["id"], "content": _stringify(preview),
@@ -125,6 +150,7 @@ async def run_assistant(
                 summary=preview["summary"],
                 preview=preview["preview"],
                 executor=tool.execute,
+                required_roles=tool.write_roles,
             )
             pending_action_payload = {
                 "action_id": action.action_id,
@@ -151,12 +177,22 @@ async def run_assistant(
 async def confirm_pending_action(
     db: AsyncSession, current_user: User, action_id: str, background_tasks: BackgroundTasks
 ) -> str | None:
-    """Execute a previously staged write. Returns None if unknown/expired/not-owned."""
+    """Execute a previously staged write. Returns None if unknown/expired/not-owned/no-longer-permitted."""
     action = pending.get(action_id, current_user.id)
     if action is None:
         return None
+    # Re-check role at confirm time, not just at proposal time — an account's
+    # role or active status may have changed in between (get_current_user
+    # already rejects a deactivated/token-revoked account before we get here;
+    # this additionally covers a role downgrade that didn't deactivate them).
+    if action.required_roles and current_user.role not in action.required_roles:
+        pending.discard(action_id)
+        return None
     pending.discard(action_id)
-    return await action.executor(db, current_user, action.args, background_tasks)
+    try:
+        return await action.executor(db, current_user, action.args, background_tasks)
+    except Exception:
+        return "That action couldn't be completed — please try again from the portal directly."
 
 
 def cancel_pending_action(current_user: User, action_id: str) -> bool:

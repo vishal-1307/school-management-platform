@@ -43,6 +43,7 @@ from app.models.staff import Staff, StaffSubjectAssignment
 from app.models.student import Parent, Student
 from app.models.timetable import TimetableSlot
 from app.models.user import User, UserRole
+from app.config import settings
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RNG_SEED = 20260709
@@ -53,7 +54,12 @@ SECTION_NAMES = ["A", "B"]
 STUDENTS_PER_SECTION = 10
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 
-ADMIN_PASSWORD = "Admin@2026"
+# Bootstrap admin password comes from settings (ADMIN_BOOTSTRAP_PASSWORD env
+# var in production — see config.py) so a real deployment's admin password
+# is never a literal committed to source control. Demo teacher/student
+# passwords stay as documented constants: they belong to the full demo
+# dataset, which only ever runs manually/locally, never on a live boot.
+ADMIN_PASSWORD = settings.admin_bootstrap_password
 TEACHER_PASSWORD = "Teach@2026"
 STUDENT_PASSWORD = "Study@2026"
 

@@ -74,6 +74,12 @@ class Settings(BaseSettings):
     # ── Bootstrap switches ──────────────────────────────────────────────
     # SEED_ON_START: run the idempotent demo seed at boot.
     seed_on_start: bool = False
+    # Password for the bootstrap `admin` super-admin login the seed creates
+    # (see app/scripts/seed_prod.py). Defaults to the documented demo value
+    # for local dev convenience only — production MUST set a real value via
+    # the ADMIN_BOOTSTRAP_PASSWORD env var (render.yaml: sync: false) so the
+    # live admin password is never a literal committed to source control.
+    admin_bootstrap_password: str = "Admin@2026"
 
     # ── Razorpay ────────────────────────────────────────────────────────
     razorpay_key_id: str = ""
